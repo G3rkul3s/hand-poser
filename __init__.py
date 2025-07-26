@@ -19,6 +19,7 @@ import json
 import sys
 import typing
 from math import radians
+from mathutils import Matrix
 
 def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):
     """ `packages`: list of tuples (<import name>, <pip name>) """
@@ -81,25 +82,34 @@ def get_sensors_data(sensor_collection):
     sensors_data = []
     for obj in sensor_collection.objects:
         if obj.type == 'EMPTY':
+            location = obj.location
+            origin = bpy.context.scene.origin_ref
+            if origin:
+                rot = origin.rotation_euler.to_matrix().to_4x4()
+                trans = Matrix.Translation(origin.location)
+                global_to_local = (trans @ rot).inverted()
+                location = global_to_local @ obj.location
             sens_info = {
                 "name": obj.name,
-                "location": list(obj.location),
+                "location": list(location),
                 "rotation_quaternion": list(obj.rotation_quaternion),
             }
             sensors_data.append(sens_info)
     return sensors_data
 
-def get_bones_data(context, obj):
+def get_bones_data(armature, context): # TODO: rework
     bones_data = []
-    context.view_layer.objects.active = obj
+    active_curr = context.view_layer.objects.active
+    context.view_layer.objects.active = armature
     use_world_space=True
     current_mode = context.mode
     bpy.ops.object.mode_set(mode='POSE')
-    for bone in obj.pose.bones:
+    for bone in armature.pose.bones:
         if bone.parent == None:
-            bone_info = get_bones_list(bone, use_world_space, obj.matrix_world)
+            bone_info = get_bones_list(bone, use_world_space, armature.matrix_world)
             bones_data.append(bone_info)
     bpy.ops.object.mode_set(mode=current_mode)
+    context.view_layer.objects.active = active_curr
     return bones_data
 
 def set_compositing_nodetree():
@@ -138,9 +148,10 @@ def setup_scene_later():
         return None  # Stop timer
     return 0.5  # Try again in 0.5 seconds
 
-def generate_random_pose(armature):
-    bpy.context.view_layer.objects.active = armature
-    current_mode = bpy.context.mode
+def generate_random_pose(armature, context):
+    active_curr = context.view_layer.objects.active
+    context.view_layer.objects.active = armature
+    current_mode = context.mode
     bpy.ops.object.mode_set(mode='POSE')
     for bone in armature.pose.bones:
         limit_rot = next((c for c in bone.constraints if c.type == 'LIMIT_ROTATION'), None)
@@ -166,6 +177,7 @@ def generate_random_pose(armature):
             random.uniform(min_y, max_y),
             random.uniform(min_z, max_z))
     bpy.ops.object.mode_set(mode=current_mode)
+    context.view_layer.objects.active = active_curr
 
 """def add_constraints_to_armature(armature_name="Armature"):
     obj = bpy.data.objects.get(armature_name)
@@ -244,28 +256,43 @@ def get_bones_list(bone, use_world_space, matrix_world):
     update=update_light_selection
 )"""
 
-bpy.types.Scene.export_checkbox = bpy.props.BoolProperty(
+"""bpy.types.Scene.export_checkbox = bpy.props.BoolProperty(
     name="Export Metadata",
     description="Export sensors and joints positions alongside renders",
     default=True,
 #    update=
-)
+)"""
 
 bpy.types.Scene.light_selection = bpy.props.EnumProperty(
-    name="Appearance",
-    description="Choose an option from the dropdown",
+    name="Lighting",
+    description="Choose a lighting for the scene",
     items=[
-        ('NL', "Natural light", "Standard render"),
-        ('IR', "IR", "Stylized sensor render")
+        ('NL', "Natural", "Use natural lighting"),
+        ('IR', "Infrared", "Use infrared lighting")
     ],
     default='NL',
     update=update_light_selection
 )
 
+bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
+    name="",
+    description="Choose a file extension",
+    items=[
+        ('JSON', ".json", "Export to .json"),
+        ('FBS', ".fbs", "Export to .fbs")
+    ],
+    default='JSON',
+)
+
+bpy.types.Scene.origin_ref = bpy.props.PointerProperty(
+    name="Origin",
+    description = "Select a reference frame for the sensors and joints positions",
+    type=bpy.types.Object,
+)
 
 bpy.types.Scene.save_folder = bpy.props.StringProperty(
-    name="Save To",
-    description="Folder to save rendered images",
+    name="Save to",
+    description="Path to the folder for rendered images and metadata",
     subtype='DIR_PATH'
 )
 
@@ -293,8 +320,8 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
 class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
     """"""
     bl_idname = "view3d.muliview_render"
-    bl_label = "Muliview Render"
-    bl_description="Render the imgaes from sensors"
+    bl_label = "Render Animation"
+    bl_description="Render the imgaes from sensors for all frames"
     
     def execute(self, context):
         # Check for sensors
@@ -305,7 +332,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         # Check for save folder
         folder = context.scene.save_folder
         if not folder:
-            self.report({'ERROR'}, "No save folder selected")
+            self.report({'ERROR'}, "Save folder not selected")
             return {'CANCELLED'}
         # Set up multiview render
         context.scene.render.use_multiview = True
@@ -320,26 +347,6 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                 v.use = False
             # else:
             #     v.use = True
-        # Save Metadata
-        if context.scene.export_checkbox:
-            sensors_data = get_sensors_data(sensor_collection)
-            armature = context.scene.armature_ref
-            if not armature or armature.type != 'ARMATURE':
-                self.report({'ERROR'}, f"Please select the armature.")
-                return
-            bones_data = {}
-            # Get metadata
-            current_frame = context.scene.frame_current
-            for i in range(context.scene.frame_start, context.scene.frame_end+1):
-                context.scene.frame_set(i)
-                bones_data[f"Frame {i}"] = get_bones_data(context, armature)
-                # context.scene.render.filepath = bpy.path.abspath(folder) + "sensor_" + bpy.context.scene.light_selection + f"_Pose_{i+1}"
-                # bpy.ops.render.render(write_still=True)
-            context.scene.frame_set(current_frame)
-            # Save metadata
-            export_filepath = bpy.path.abspath(folder) + "metadata.json"
-            with open(export_filepath, 'w') as f:
-                json.dump({"Sensors":sensors_data, "Bones":bones_data}, f, indent=4)
         # Invoke render
         bpy.ops.render.render(animation=True)
         self.report({'INFO'}, "Render successfully saved")
@@ -348,7 +355,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
 class VIEW3D_OT_AddSensor(bpy.types.Operator):
     """"""
     bl_idname = "view3d.add_sensor"
-    bl_label = "Add Sensor"
+    bl_label = "Add"
     bl_description="Add a sensor to the scene"
     
     def execute(self, context):
@@ -436,44 +443,48 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
     """"""
     bl_idname = "view3d.generate_pose"
-    bl_label = "Random Pose"
+    bl_label = "Random"
     bl_description="Generate a rondom pose"
     def execute(self, context):
         armature = context.scene.armature_ref
         if not armature:
             self.report({'ERROR'}, f"Please select the armature.")
             return {'CANCELLED'}
-        generate_random_pose(armature)
+        generate_random_pose(armature, context)
         return {'FINISHED'}
     
 class VIEW3D_OT_SetKeyframe(bpy.types.Operator):
     """"""
     bl_idname = "view3d.set_keyframe"
     bl_label = "Keyframe"
-    bl_description="Set current pose as a keyframe"
+    bl_description="Set the current pose as a keyframe"
     def execute(self, context):
         armature = context.scene.armature_ref
         if not armature:
             self.report({'ERROR'}, f"Please select the armature.")
             return {'CANCELLED'}
+        active_curr = context.view_layer.objects.active
+        context.view_layer.objects.active = armature
         current_mode = bpy.context.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
             bone.keyframe_insert(data_path="location")
             bone.keyframe_insert(data_path="rotation_euler")
         bpy.ops.object.mode_set(mode=current_mode)
+        context.view_layer.objects.active = active_curr
         return {'FINISHED'}
 
 class VIEW3D_OT_ResetPose(bpy.types.Operator):
     """"""
     bl_idname = "view3d.reset_pose"
-    bl_label = "Reset Pose"
+    bl_label = "Reset"
     bl_description="Reset the pose"
     def execute(self, context):
         armature = context.scene.armature_ref
         if not armature:
             self.report({'ERROR'}, f"Please select the armature.")
             return {'CANCELLED'}
+        active_curr = context.view_layer.objects.active
         context.view_layer.objects.active = armature
         current_mode = context.mode
         bpy.ops.object.mode_set(mode='POSE')
@@ -481,6 +492,57 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
             bone.rotation_mode = 'XYZ'
             bone.rotation_euler = (0,0,0)
         bpy.ops.object.mode_set(mode=current_mode)
+        context.view_layer.objects.active = active_curr
+        return {'FINISHED'}
+
+class VIEW3D_OT_SaveMetadata(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.save_metadata"
+    bl_label = "Save Metadata"
+    bl_description="Save metadata for each frame"
+
+    def execute(self, context):
+        # Check for sensors
+        sensor_collection = bpy.data.collections.get('Sensors')
+        if not sensor_collection:
+            self.report({'ERROR'}, "Sensors collection not found")
+            return
+        # Check for save folder
+        folder = context.scene.save_folder
+        if not folder:
+            self.report({'ERROR'}, "No save folder selected")
+            return {'CANCELLED'}
+        # Save Metadata
+        # TODO: save origin???
+        sensors_data = get_sensors_data(sensor_collection)
+        armature = context.scene.armature_ref
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, f"Please select the armature.")
+            return
+        bones_data = {}
+        # Get metadata
+        current_frame = context.scene.frame_current
+        for i in range(context.scene.frame_start, context.scene.frame_end+1):
+            context.scene.frame_set(i)
+            bones_data[f"Frame {i}"] = get_bones_data(armature, context)
+            # context.scene.render.filepath = bpy.path.abspath(folder) + "sensor_" + bpy.context.scene.light_selection + f"_Pose_{i+1}"
+            # bpy.ops.render.render(write_still=True)
+        context.scene.frame_set(current_frame)
+        # Save metadata
+        export_filepath = bpy.path.abspath(folder) + "metadata.json"
+        with open(export_filepath, 'w') as f:
+            json.dump({"Sensors":sensors_data, "Bones":bones_data}, f, indent=4)
+        return {'FINISHED'}
+
+class VIEW3D_OT_InfoBox(bpy.types.Operator):
+    bl_idname = "view3d.info_box"
+    bl_label = ""
+    bl_description = "It is recomended to use a rendering script.\n" \
+    "Rendering the animation inside the Blender GUI will freeze the application"
+    
+    def execute(self, context):
+        self.report({'INFO'}, "It is recomended to use a rendering script. " \
+        "Rendering the animation inside the Blender GUI will freeze the application.")
         return {'FINISHED'}
 
 class VIEW3D_PT_MyCustomPanel(bpy.types.Panel):
@@ -499,27 +561,34 @@ class VIEW3D_PT_MyCustomPanel(bpy.types.Panel):
         box_render = layout.box()
         box_render.prop(scene, "light_selection")
         # box_render.prop(scene, "viewport_checkbox")
-        box_render.operator(VIEW3D_OT_MultiviewRender.bl_idname)
-        # box_render.prop(scene, "random_pose_checkbox")
-        # split_rand = box_render.row()
-        # split_rand.enabled = scene.random_pose_checkbox
-        # split_rand.prop(scene, "random_poses_slider", slider=True)
-        box_render.prop(scene, "export_checkbox")
+        box_row = box_render.row(align=True)
+        split_render = box_row.split(factor=0.9, align=True)
+        split_render.operator(VIEW3D_OT_MultiviewRender.bl_idname)
+        split_render.enabled = False
+        split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
+        split_render.enabled = True
+        box_row = box_render.row(align=True)
+        split_meta = box_row.split(factor=0.6, align=True)
+        split_meta.operator(VIEW3D_OT_SaveMetadata.bl_idname)
+        split_meta.prop(scene, "file_extension_selection") # TODO: implement functionality
         box_render.prop(scene, "save_folder")
         
-        layout.label(text="Action:")
+        layout.label(text="Pose:")
         box_action = layout.box()
         box_action.prop(context.scene, "armature_ref")
-        box_action.operator(VIEW3D_OT_AddSensor.bl_idname)
-        box_row = box_action.row(align=True)
-        split_pose = box_row.split(factor=0.6, align=True)
-        split_pose.operator(VIEW3D_OT_GeneratePose.bl_idname)
-        split_pose.operator(VIEW3D_OT_SetKeyframe.bl_idname)
-        box_action.operator(VIEW3D_OT_ResetPose.bl_idname)
+        box_col = box_action.column(align=True)
+        # split_pose = box_col.split(align=True)
+        box_col.operator(VIEW3D_OT_GeneratePose.bl_idname)
+        box_col.operator(VIEW3D_OT_ResetPose.bl_idname)
+        box_action.operator(VIEW3D_OT_SetKeyframe.bl_idname)
         # TODO: metall frame as a separate .blend file
         # TODO: sensor model as a separate .blend file
         # TODO: add "Add hand Left/Right" button
         # TODO: set reference point for the sensors
+        layout.label(text="Sensor:")
+        box_sensor = layout.box()
+        box_sensor.operator(VIEW3D_OT_AddSensor.bl_idname)
+        box_sensor.prop(context.scene, "origin_ref")
         # TODO: add button to add Natural IR sources
 
 classes = (
@@ -529,6 +598,8 @@ classes = (
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_SetKeyframe,
     VIEW3D_OT_ResetPose,
+    VIEW3D_OT_SaveMetadata,
+    VIEW3D_OT_InfoBox,
 )
 
 def register():
