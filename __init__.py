@@ -16,44 +16,45 @@ import math
 import json
 # import os
 # import re
-import sys
-import typing
+# import sys
+# import typing
 from math import radians
-from mathutils import Matrix
+from mathutils import Vector, Quaternion, Matrix
 
-def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):
-    """ `packages`: list of tuples (<import name>, <pip name>) """
-    
-    if not packages:
-        return
+# TODO: delete me later ???
+"""
+# def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
+#     if not packages:
+#         return
 
-    import site
-    import importlib
-    import importlib.util
+#     import site
+#     import importlib
+#     import importlib.util
 
-    user_site_packages = site.getusersitepackages()
-    sys.path.append(user_site_packages)
+#     user_site_packages = site.getusersitepackages()
+#     sys.path.append(user_site_packages)
 
-    modules_to_install = [module[1] for module in packages if not importlib.util.find_spec(module[0])]
-    if not modules_to_install:
-        return
+#     modules_to_install = [module[1] for module in packages if not importlib.util.find_spec(module[0])]
+#     if not modules_to_install:
+#         return
 
-    if bpy.app.version < (2,91,0):
-        python_binary = bpy.app.binary_path_python
-    else:
-        python_binary = sys.executable
+#     if bpy.app.version < (2,91,0):
+#         python_binary = bpy.app.binary_path_python
+#     else:
+#         python_binary = sys.executable
         
-    import subprocess
-    subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
-    subprocess.run([python_binary, '-m', 'pip', 'install', *modules_to_install, "--user"], check=True)
+#     import subprocess
+#     subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
+#     subprocess.run([python_binary, '-m', 'pip', 'install', *modules_to_install, "--user"], check=True)
     
-    importlib.invalidate_caches()
+#     importlib.invalidate_caches()
     
-ensure_site_packages([
-    ("flatbuffers", "flatbuffers"),
-])
+# ensure_site_packages([
+#     ("flatbuffers", "flatbuffers"),
+# ])
 
-from .VIRTOSHA.FlatBuffers import FrameBatch
+# from .VIRTOSHA.FlatBuffers import FrameBatch
+"""
 
 def new_sensor_camera(cam_name="Camera"):
     cam_data = bpy.data.cameras.new(name=cam_name)
@@ -153,7 +154,10 @@ def generate_random_pose(armature, context):
     context.view_layer.objects.active = armature
     current_mode = context.mode
     bpy.ops.object.mode_set(mode='POSE')
+    bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
     for bone in armature.pose.bones:
+        if bone_collection and bone.name not in bone_collection.bones:
+            continue
         limit_rot = next((c for c in bone.constraints if c.type == 'LIMIT_ROTATION'), None)
         min_x = -math.pi
         max_x = math.pi
@@ -286,7 +290,7 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.origin_ref = bpy.props.PointerProperty(
     name="Origin",
-    description = "Select a reference frame for the sensors and joints positions",
+    description = "Select a reference frame for the sensors and joints positions. \nLeave empty to use world coordinates",
     type=bpy.types.Object,
 )
 
@@ -316,6 +320,45 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'ARMATURE',
 )
+
+bpy.types.Scene.random_positions_ref = bpy.props.PointerProperty(
+    name="",
+    description = "Pick a mesh to randomly sample it's vertecies for a sensor placement",
+    type=bpy.types.Object,
+    poll=lambda self, obj: obj.type == 'MESH',
+)
+
+def get_bone_collections(self, context):
+    items = [("NONE", "None", "Use the whole armature")]
+    armature = context.scene.armature_ref
+    if armature and armature.type == 'ARMATURE':
+        items.extend([(bc.name, bc.name, "") for bc in armature.data.collections])
+    return items
+
+bpy.types.Scene.selected_bone_collection = bpy.props.EnumProperty(
+    name="",
+    items=get_bone_collections,
+    # default="NONE",
+)
+
+bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
+    name="",
+    description="Choose a sensor orientation",
+    items=[
+        ('KEEP', "Keep", "Keep the original orientation"),
+        ('NORMAL', "Normals", "Pointing along the normals of the sampling mesh"),
+        ('NEGNORMAL', "Negative normals", "Pointing along the negative of the normals of the sampling mesh"),
+        ('ORIGIN', "Sample origin", "Pointing to the origin of the sampling mesh")
+    ],
+    default='KEEP',
+)
+
+"""bpy.types.Scene.angle_restriction = bpy.props.EnumProperty(
+    name="",
+    description="Amount of allowed sensor rotation configurations",
+    items = [(str(i), str(i), "") for i in range(1, 361) if 360 % i == 0],
+    default = "4",
+)"""
 
 class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
     """"""
@@ -355,8 +398,9 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
 class VIEW3D_OT_AddSensor(bpy.types.Operator):
     """"""
     bl_idname = "view3d.add_sensor"
-    bl_label = "Add"
+    bl_label = "Add Sensor"
     bl_description="Add a sensor to the scene"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
         collection_name  = "Sensors"
@@ -438,6 +482,8 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         spot_obj_left.hide_viewport = nl_render
         spot_obj_right.hide_viewport = nl_render
         
+        context.view_layer.objects.active = empty
+        empty.select_set(True)
         return {'FINISHED'}
 
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
@@ -445,6 +491,8 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
     bl_idname = "view3d.generate_pose"
     bl_label = "Random"
     bl_description="Generate a rondom pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         armature = context.scene.armature_ref
         if not armature:
@@ -453,11 +501,13 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         generate_random_pose(armature, context)
         return {'FINISHED'}
     
-class VIEW3D_OT_SetKeyframe(bpy.types.Operator):
+class VIEW3D_OT_SetArmatureKeyframe(bpy.types.Operator):
     """"""
-    bl_idname = "view3d.set_keyframe"
+    bl_idname = "view3d.set_armature_keyframe"
     bl_label = "Keyframe"
     bl_description="Set the current pose as a keyframe"
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         armature = context.scene.armature_ref
         if not armature:
@@ -479,6 +529,8 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
     bl_idname = "view3d.reset_pose"
     bl_label = "Reset"
     bl_description="Reset the pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         armature = context.scene.armature_ref
         if not armature:
@@ -495,11 +547,11 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
         context.view_layer.objects.active = active_curr
         return {'FINISHED'}
 
-class VIEW3D_OT_SaveMetadata(bpy.types.Operator):
+class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     """"""
-    bl_idname = "view3d.save_metadata"
-    bl_label = "Save Metadata"
-    bl_description="Save metadata for each frame"
+    bl_idname = "view3d.export_metadata"
+    bl_label = "Export Metadata"
+    bl_description="Export metadata for each animation frame"
 
     def execute(self, context):
         # Check for sensors
@@ -545,10 +597,126 @@ class VIEW3D_OT_InfoBox(bpy.types.Operator):
         "Rendering the animation inside the Blender GUI will freeze the application.")
         return {'FINISHED'}
 
-class VIEW3D_PT_MyCustomPanel(bpy.types.Panel):
-    """My Custom Panel in N-Panel"""
-    bl_label = ""
-    bl_idname = "VIEW3D_PT_my_custom_panel"
+class VIEW3D_OT_MoveSensorToOrigin(bpy.types.Operator):
+    bl_idname = "view3d.move_sensor_to_origin"
+    bl_label = "Move to Origin"
+    bl_description = "Move the sensor to the origin"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.object.type == 'EMPTY') and 
+                    (context.object.name in bpy.data.collections.get('Sensors').objects))
+        except: return False
+    
+    def execute(self, context):
+        obj = context.object
+        origin = context.scene.origin_ref
+        if origin:
+            obj.location = origin.location
+        else:
+            obj.location = (0, 0, 0)
+        return{'FINISHED'}
+
+class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
+    bl_idname = "view3d.random_sensor_position"
+    bl_label = "Random Position"
+    bl_description = "Set random sensor position on the sampling mesh"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.object.type == 'EMPTY') and 
+                    (context.object.name in bpy.data.collections.get('Sensors').objects) and 
+                    (context.scene.random_positions_ref))
+        except: return False
+
+    def execute(self, context):
+        sensor = context.view_layer.objects.active
+        # current_mode = context.mode
+        # bpy.ops.object.mode_set(mode='OBJECT')
+        sample = context.scene.random_positions_ref
+        context.view_layer.objects.active = sample
+        sample_mesh = sample.data
+        world_matrix = sample.matrix_world
+        vert_rand = sample_mesh.vertices[random.randint(0, len(sample_mesh.vertices)-1)]
+        sensor.location = world_matrix @ vert_rand.co
+        orient = context.scene.sensor_orientation
+        if orient == "NORMAL":
+            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+            from_dir = Vector((0.0, 0.0, -1.0))
+            to_dir = vert_rand.normal
+            rotation_quat = from_dir.rotation_difference(to_dir)
+            sensor.rotation_mode = 'QUATERNION'
+            sensor.rotation_quaternion = rotation_quat
+        elif orient == "NEGNORMAL":
+            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+            from_dir = Vector((0.0, 0.0, 1.0))
+            to_dir = vert_rand.normal
+            rotation_quat = from_dir.rotation_difference(to_dir)
+            sensor.rotation_mode = 'QUATERNION'
+            sensor.rotation_quaternion = rotation_quat
+        elif orient == "ORIGIN":
+            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+            from_dir = Vector((0.0, 0.0, -1.0))
+            to_dir = sample.location - sensor.location
+            rotation_quat = from_dir.rotation_difference(to_dir)
+            sensor.rotation_mode = 'QUATERNION'
+            sensor.rotation_quaternion = rotation_quat
+        
+        context.view_layer.objects.active = sensor
+        sensor.select_set(True)
+        # bpy.ops.object.mode_set(mode=current_mode)
+        return{'FINISHED'}
+
+"""class VIEW3D_OT_RandomSensorRotation(bpy.types.Operator):
+    bl_idname = "view3d.random_sensor_rotation"
+    bl_label = "Random Rotation"
+    bl_description = "Set random sensor rotation along its z-axis"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.object.type == 'EMPTY') and 
+                    (context.object.name in bpy.data.collections.get('Sensors').objects) and 
+                    (context.scene.random_positions_ref))
+        except: return False
+
+    def execute(self, context):
+        sensor = context.view_layer.objects.active
+        sensor.rotation_mode = 'QUATERNION'
+        angle = 360 / random.randint(1, int(context.scene.angle_restriction))
+        print(angle)
+        rot_quat = Quaternion((0, 0, 1), math.radians(angle))  # axis-angle: axis, angle in radians
+
+        # Apply rotation
+        sensor.rotation_quaternion = sensor.rotation_quaternion @ rot_quat
+        return{'FINISHED'}"""
+
+class VIEW3D_OT_SetSensorKeyframe(bpy.types.Operator):
+    bl_idname = "view3d.set_sensor_keyframe"
+    bl_label = "Keyframe"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.object.type == 'EMPTY') and 
+                    (context.object.name in bpy.data.collections.get('Sensors').objects))
+        except: return False
+
+    def execute(self, context):
+        # TODO: implement
+        return{'FINISHED'}
+
+class VIEW3D_PT_Export(bpy.types.Panel):
+    """"""
+    bl_label = "Export / Render"
+    bl_idname = "view3d.export_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Multi-IR Render'
@@ -557,56 +725,108 @@ class VIEW3D_PT_MyCustomPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        layout.label(text="Render:")
-        box_render = layout.box()
-        box_render.prop(scene, "light_selection")
+        # layout.label(text="Render:")
+        # box_render = layout.box()
+        layout.prop(scene, "light_selection")
         # box_render.prop(scene, "viewport_checkbox")
-        box_row = box_render.row(align=True)
-        split_render = box_row.split(factor=0.9, align=True)
+        layout_row = layout.row(align=True)
+        split_render = layout_row.split(factor=0.9, align=True)
         split_render.operator(VIEW3D_OT_MultiviewRender.bl_idname)
-        split_render.enabled = False
         split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
-        split_render.enabled = True
-        box_row = box_render.row(align=True)
-        split_meta = box_row.split(factor=0.6, align=True)
-        split_meta.operator(VIEW3D_OT_SaveMetadata.bl_idname)
+        layout_row = layout.row(align=True)
+        split_meta = layout_row.split(factor=0.6, align=True)
+        split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname)
         split_meta.prop(scene, "file_extension_selection") # TODO: implement functionality
-        box_render.prop(scene, "save_folder")
-        
-        layout.label(text="Pose:")
-        box_action = layout.box()
-        box_action.prop(context.scene, "armature_ref")
-        box_col = box_action.column(align=True)
+        layout.prop(scene, "save_folder")
+
+
+class VIEW3D_PT_Pose(bpy.types.Panel):
+    """"""
+    bl_label = "Pose"
+    bl_idname = "view3d.pose_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Multi-IR Render'
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        # layout.label(text="Pose:")
+        # box_action = layout.box()
+        layout.prop(scene, "armature_ref")
+        layout_row = layout.row(align=True)
+        layout_split = layout_row.split(factor=0.4, align=True)
+        layout_split.label(text="Bone Collection:")
+        layout_split.prop(scene, "selected_bone_collection")
+        layout_col = layout.column(align=True)
         # split_pose = box_col.split(align=True)
-        box_col.operator(VIEW3D_OT_GeneratePose.bl_idname)
-        box_col.operator(VIEW3D_OT_ResetPose.bl_idname)
-        box_action.operator(VIEW3D_OT_SetKeyframe.bl_idname)
-        # TODO: metall frame as a separate .blend file
+        layout_col.operator(VIEW3D_OT_GeneratePose.bl_idname)
+        layout_col.operator(VIEW3D_OT_ResetPose.bl_idname)
+        layout.operator(VIEW3D_OT_SetArmatureKeyframe.bl_idname)
+        # TODO: metall frame + sensor pos. as a separate .blend file ???
         # TODO: sensor model as a separate .blend file
-        # TODO: add "Add hand Left/Right" button
-        # TODO: set reference point for the sensors
-        layout.label(text="Sensor:")
-        box_sensor = layout.box()
-        box_sensor.operator(VIEW3D_OT_AddSensor.bl_idname)
-        box_sensor.prop(context.scene, "origin_ref")
+
+class VIEW3D_PT_Sensor(bpy.types.Panel):
+    """"""
+    bl_label = "Sensor"
+    bl_idname = "view3d.sensor_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Multi-IR Render"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        # layout.label(text="Sensor:")
+        # box_sensor = layout.box()
+        layout.operator(VIEW3D_OT_AddSensor.bl_idname)
+        layout.prop(scene, "origin_ref")
+        layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
+        # box_sensor.separator()
+        layout_rand_col = layout.column(align=True)
+        layout_row = layout_rand_col.row(align=True)
+        layout_split = layout_row.split(factor=0.3, align=True)
+        layout_split.label(text="Sample:")
+        layout_split.prop(scene, "random_positions_ref")
+        # box_rand_col.separator(factor=0.2, type='SPACE')
+        # box_rand_col.prop(scene, "random_positions_ref")
+        layout_row = layout_rand_col.row(align=True)
+        layout_split = layout_row.split(factor=0.3, align=True)
+        layout_split.label(text="Orientation:")
+        layout_split.prop(scene, "sensor_orientation")
+        # box_rand_col.separator(factor=0.2, type='SPACE')
+        layout_rand_col.operator(VIEW3D_OT_RandomSensorPosition.bl_idname)
+        """layout_rand_angle = layout.column(align=True)
+        layout_rand_angle_row = layout_rand_angle.row(align=True)
+        layout_rand_angle_split = layout_rand_angle_row.split(factor=0.1, align=True)
+        layout_rand_angle_row.label(text="Number of Rotations:")
+        layout_rand_angle_row.prop(scene, "angle_restriction")
+        layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
+        layout.operator(VIEW3D_OT_SetSensorKeyframe.bl_idname)
         # TODO: add button to add Natural IR sources
 
 classes = (
-    VIEW3D_PT_MyCustomPanel,
     VIEW3D_OT_MultiviewRender,
-    VIEW3D_OT_AddSensor,
-    VIEW3D_OT_GeneratePose,
-    VIEW3D_OT_SetKeyframe,
-    VIEW3D_OT_ResetPose,
-    VIEW3D_OT_SaveMetadata,
     VIEW3D_OT_InfoBox,
+    VIEW3D_OT_ExportMetadata,
+    VIEW3D_OT_GeneratePose,
+    VIEW3D_OT_ResetPose,
+    VIEW3D_OT_SetArmatureKeyframe,
+    VIEW3D_OT_AddSensor,
+    VIEW3D_OT_MoveSensorToOrigin,
+    VIEW3D_OT_RandomSensorPosition,
+    # VIEW3D_OT_RandomSensorRotation,
+    VIEW3D_OT_SetSensorKeyframe,
+    VIEW3D_PT_Export,
+    VIEW3D_PT_Pose,
+    VIEW3D_PT_Sensor,
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     # Setup compositing Nodetree
-    bpy.app.timers.register(setup_scene_later)
+    bpy.app.timers.register(setup_scene_later) # TODO: move to a button in "render"
     print("IR Style Render Registered (N-Panel)")
 
 def unregister():
