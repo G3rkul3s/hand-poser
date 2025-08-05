@@ -12,6 +12,7 @@ bl_info = {
 
 import bpy
 import random
+import numpy as np
 import math
 import json
 # import os
@@ -21,40 +22,42 @@ import json
 from math import radians
 from mathutils import Vector, Quaternion, Matrix
 
+from .load_mano import load_mano_hand, load_regressor, BONE_NAMES
+
 # TODO: delete me later ???
-"""
-# def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
-#     if not packages:
-#         return
+"""def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
+    if not packages:
+        return
 
-#     import site
-#     import importlib
-#     import importlib.util
+    import site
+    import importlib
+    import importlib.util
 
-#     user_site_packages = site.getusersitepackages()
-#     sys.path.append(user_site_packages)
+    user_site_packages = site.getusersitepackages()
+    sys.path.append(user_site_packages)
 
-#     modules_to_install = [module[1] for module in packages if not importlib.util.find_spec(module[0])]
-#     if not modules_to_install:
-#         return
+    modules_to_install = [module[1] for module in packages if not importlib.util.find_spec(module[0])]
+    if not modules_to_install:
+        return
 
-#     if bpy.app.version < (2,91,0):
-#         python_binary = bpy.app.binary_path_python
-#     else:
-#         python_binary = sys.executable
+    if bpy.app.version < (2,91,0):
+        python_binary = bpy.app.binary_path_python
+    else:
+        python_binary = sys.executable
         
-#     import subprocess
-#     subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
-#     subprocess.run([python_binary, '-m', 'pip', 'install', *modules_to_install, "--user"], check=True)
+    import subprocess
+    subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
+    subprocess.run([python_binary, '-m', 'pip', 'install', *modules_to_install, "--user"], check=True)
     
-#     importlib.invalidate_caches()
-    
-# ensure_site_packages([
-#     ("flatbuffers", "flatbuffers"),
-# ])
+    importlib.invalidate_caches()
 
+ensure_site_packages([
+    # ("flatbuffers", "flatbuffers"),
+    ("torch", "torch"),
+])"""
+
+# from manotorch.manolayer import ManoLayer, MANOOutput
 # from .VIRTOSHA.FlatBuffers import FrameBatch
-"""
 
 def new_sensor_camera(cam_name="Camera"):
     cam_data = bpy.data.cameras.new(name=cam_name)
@@ -253,6 +256,31 @@ def get_bones_list(bone, use_world_space, matrix_world):
     bone_info["children"] = children_info
     return bone_info
 
+def update_joint_positions(armature_obj, J_regressor, v_shaped, context):
+    """
+    Updates the joint (bone) positions in the armature based on the current shape of the mesh.
+    """
+    # Compute new joint positions
+    joints = J_regressor @ v_shaped # shape (16, 3)
+    active_curr = context.view_layer.objects.active
+    context.view_layer.objects.active = armature_obj
+    current_mode = context.mode
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit_bones = armature_obj.data.edit_bones
+
+    for i, name in enumerate(BONE_NAMES):
+        if name not in edit_bones:
+            continue
+        bone = edit_bones[name]
+        new_head = joints[i]
+        new_tail = bone.tail + Vector(new_head - bone.head)
+
+        bone.head = new_head
+        bone.tail = new_tail
+
+    bpy.ops.object.mode_set(mode=current_mode)
+    context.view_layer.objects.active = active_curr
+
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
     description="Display render type in viewport",
@@ -276,6 +304,16 @@ bpy.types.Scene.light_selection = bpy.props.EnumProperty(
     ],
     default='NL',
     update=update_light_selection
+)
+
+bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
+    name="Hand",
+    description="Choose a MANO hand type",
+    items=[
+        ('LEFT', "Left", "Left hand"),
+        ('RIGHT', "Right", "Right hand")
+    ],
+    default='RIGHT',
 )
 
 bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
@@ -321,9 +359,23 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
     poll=lambda self, obj: obj.type == 'ARMATURE',
 )
 
+bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
+    name="",
+    description = "Right hand mesh with defined shape keys (the same keys as for the left hand)",
+    type=bpy.types.Object,
+    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
+)
+
+bpy.types.Scene.deformable_mesh_left_ref = bpy.props.PointerProperty(
+    name="",
+    description = "Left hand mesh with defined shape keys (the same keys as for the right hand)",
+    type=bpy.types.Object,
+    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
+)
+
 bpy.types.Scene.random_positions_ref = bpy.props.PointerProperty(
     name="",
-    description = "Pick a mesh to randomly sample it's vertecies for a sensor placement",
+    description = "A mesh to randomly sample it's vertecies for the sensor placement",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'MESH',
 )
@@ -398,7 +450,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
 class VIEW3D_OT_AddSensor(bpy.types.Operator):
     """"""
     bl_idname = "view3d.add_sensor"
-    bl_label = "Add Sensor"
+    bl_label = "Add"
     bl_description="Add a sensor to the scene"
     bl_options = {'REGISTER', 'UNDO'}
     
@@ -489,7 +541,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
     """"""
     bl_idname = "view3d.generate_pose"
-    bl_label = "Random"
+    bl_label = "Random Pose"
     bl_description="Generate a rondom pose"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -501,11 +553,11 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         generate_random_pose(armature, context)
         return {'FINISHED'}
     
-class VIEW3D_OT_SetArmatureKeyframe(bpy.types.Operator):
+class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
     """"""
-    bl_idname = "view3d.set_armature_keyframe"
+    bl_idname = "view3d.armature_keyframe"
     bl_label = "Keyframe"
-    bl_description="Set the current pose as a keyframe"
+    bl_description = "Set the current pose as a keyframe"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -696,10 +748,10 @@ class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
         sensor.rotation_quaternion = sensor.rotation_quaternion @ rot_quat
         return{'FINISHED'}"""
 
-class VIEW3D_OT_SetSensorKeyframe(bpy.types.Operator):
-    bl_idname = "view3d.set_sensor_keyframe"
+class VIEW3D_OT_SensorKeyframe(bpy.types.Operator):
+    bl_idname = "view3d.sensor_keyframe"
     bl_label = "Keyframe"
-    bl_description = ""
+    bl_description = "" # TODO: add description
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -713,10 +765,140 @@ class VIEW3D_OT_SetSensorKeyframe(bpy.types.Operator):
         # TODO: implement
         return{'FINISHED'}
 
+class VIEW3D_OT_ResetMeshShape(bpy.types.Operator):
+    bl_idname = "view3d.reset_mesh_shape"
+    bl_label = "Reset"
+    bl_description = "Reset the shape"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.scene.deformable_mesh_right_ref) and 
+                    (context.scene.deformable_mesh_right_ref.data.shape_keys) or
+                    (context.scene.deformable_mesh_left_ref) and 
+                    (context.scene.deformable_mesh_left_ref.data.shape_keys))
+        except: return False
+
+    def execute(self, context):
+        mesh_right = context.scene.deformable_mesh_right_ref
+        if mesh_right:
+            for key in mesh_right.data.shape_keys.key_blocks:
+                key.value = 0.0
+        mesh_left = context.scene.deformable_mesh_left_ref
+        if mesh_left:
+            for key in mesh_left.data.shape_keys.key_blocks:
+                key.value = 0.0
+        return{'FINISHED'}
+
+class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
+    bl_idname = "view3d.random_mesh_shape"
+    bl_label = "Random Shape"
+    bl_description = "Set random shape of the mesh based on its Shape Keys"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.scene.deformable_mesh_right_ref) and 
+                    (context.scene.deformable_mesh_right_ref.data.shape_keys) or
+                    (context.scene.deformable_mesh_left_ref) and 
+                    (context.scene.deformable_mesh_left_ref.data.shape_keys))
+        except: return False
+
+    def execute(self, context):
+        mesh_right = context.scene.deformable_mesh_right_ref
+        mesh_left = context.scene.deformable_mesh_left_ref
+        if mesh_right and mesh_left:
+            if len(mesh_right.data.shape_keys.key_blocks) != len(mesh_left.data.shape_keys.key_blocks):
+                self.report({'ERROR'}, "Meshes have different number of shape keys")
+            for key_right, key_left in zip(mesh_right.data.shape_keys.key_blocks, mesh_left.data.shape_keys.key_blocks):
+                key_right.value = key_left.value = random.gauss(0.0, 1.5) # TODO: std range slider
+        elif mesh_right:
+            for key_right in mesh_right.data.shape_keys.key_blocks:
+                key_right.value = random.gauss(0.0, 1.5) # TODO: std range slider
+        elif mesh_left:
+            for key_left in mesh_left.data.shape_keys.key_blocks:
+                key_left.value = random.gauss(0.0, 1.5) # TODO: std range slider
+        return{'FINISHED'}
+
+class VIEW3D_OT_ShapeKeyframe(bpy.types.Operator):
+    bl_idname = "view3d.shape_keyframe"
+    bl_label = "Keyframe"
+    bl_description = "" # TODO: add description
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.scene.deformable_mesh_right_ref) and 
+                    (context.scene.deformable_mesh_right_ref.data.shape_keys) or
+                    (context.scene.deformable_mesh_left_ref) and 
+                    (context.scene.deformable_mesh_left_ref.data.shape_keys))
+        except: return False
+
+    def execute(self, context):
+        mesh_right = context.scene.deformable_mesh_right_ref
+        if mesh_right:
+            for key in mesh_right.data.shape_keys.key_blocks:
+                key.keyframe_insert(data_path="value")
+        mesh_left = context.scene.deformable_mesh_left_ref
+        if mesh_left:
+            for key in mesh_left.data.shape_keys.key_blocks:
+                key.keyframe_insert(data_path="value")
+        return{'FINISHED'}
+
+class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
+    bl_idname = "view3d.update_joint_positions"
+    bl_label = "Update Joint Positions"
+    bl_description = "Update joint positions of the deformed mesh"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.scene.deformable_mesh_right_ref) and 
+                    (context.scene.deformable_mesh_right_ref.data.shape_keys) or
+                    (context.scene.deformable_mesh_left_ref) and 
+                    (context.scene.deformable_mesh_left_ref.data.shape_keys))
+        except: return False
+
+    def execute(self, context): # TODO: do
+        mesh_right = context.scene.deformable_mesh_right_ref
+        if mesh_right:
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            eval_obj = mesh_right.evaluated_get(depsgraph)
+            eval_mesh = eval_obj.to_mesh()
+            vertices = np.array([v.co[:] for v in eval_mesh.vertices])
+            # TODO: cash the regressor
+            J_regressor= load_regressor('RIGHT')
+            update_joint_positions(mesh_right.parent, J_regressor, vertices, context)
+        
+        mesh_left = context.scene.deformable_mesh_left_ref
+        if mesh_left:
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            eval_obj = mesh_left.evaluated_get(depsgraph)
+            eval_mesh = eval_obj.to_mesh()
+            vertices = np.array([v.co[:] for v in eval_mesh.vertices])
+            # TODO: cash the regressor
+            J_regressor= load_regressor('LEFT')
+            update_joint_positions(mesh_left.parent, J_regressor, vertices, context)
+        return{'FINISHED'}
+    
+class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
+    bl_idname = "view3d.add_mano_hand"
+    bl_label = "Add"
+    bl_description = "Add a MANO hand model"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        load_mano_hand(context.scene.hand_selection)
+        return{'FINISHED'}
+
 class VIEW3D_PT_Export(bpy.types.Panel):
     """"""
     bl_label = "Export / Render"
-    bl_idname = "view3d.export_panel"
+    bl_idname = "VIEW3D_PT_Export"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Multi-IR Render'
@@ -739,11 +921,25 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         split_meta.prop(scene, "file_extension_selection") # TODO: implement functionality
         layout.prop(scene, "save_folder")
 
+class VIEW3D_PT_MANO_Model(bpy.types.Panel):
+    """"""
+    bl_label = "MANO Hand Model"
+    bl_idname = "VIEW3D_PT_MANO_Model"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Multi-IR Render'
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        
+        layout.prop(scene, "hand_selection")
+        layout.operator(VIEW3D_OT_AddMANOHand.bl_idname)
 
 class VIEW3D_PT_Pose(bpy.types.Panel):
     """"""
     bl_label = "Pose"
-    bl_idname = "view3d.pose_panel"
+    bl_idname = "VIEW3D_PT_Pose"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Multi-IR Render'
@@ -758,18 +954,46 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_split = layout_row.split(factor=0.4, align=True)
         layout_split.label(text="Bone Collection:")
         layout_split.prop(scene, "selected_bone_collection")
-        layout_col = layout.column(align=True)
-        # split_pose = box_col.split(align=True)
-        layout_col.operator(VIEW3D_OT_GeneratePose.bl_idname)
-        layout_col.operator(VIEW3D_OT_ResetPose.bl_idname)
-        layout.operator(VIEW3D_OT_SetArmatureKeyframe.bl_idname)
+        layout_row = layout.row(align=True)
+        layout_split = layout_row.split(factor=0.7, align=True)
+        layout_split.operator(VIEW3D_OT_GeneratePose.bl_idname)
+        layout_split.operator(VIEW3D_OT_ResetPose.bl_idname)
+        layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
+        # TODO: random shape operator
         # TODO: metall frame + sensor pos. as a separate .blend file ???
         # TODO: sensor model as a separate .blend file
+
+class VIEW3D_PT_Shape(bpy.types.Panel):
+    """"""
+    bl_label = "Shape"
+    bl_idname = "VIEW3D_PT_Shape"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Multi-IR Render'
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        layout_col = layout.column(align=True)
+        layout_row = layout_col.row(align=True)
+        layout_split = layout_row.split(factor=0.3, align=True)
+        layout_split.label(text="Rigth hand:")
+        layout_split.prop(scene, "deformable_mesh_right_ref")
+        layout_row = layout_col.row(align=True)
+        layout_split = layout_row.split(factor=0.3, align=True)
+        layout_split.label(text="Left hand:")
+        layout_split.prop(scene, "deformable_mesh_left_ref")
+        layout_row = layout.row(align=True)
+        layout_split = layout_row.split(factor=0.7, align=True)
+        layout_split.operator(VIEW3D_OT_RandomMeshShape.bl_idname)
+        layout_split.operator(VIEW3D_OT_ResetMeshShape.bl_idname)
+        layout.operator(VIEW3D_OT_UpdateJointPositions.bl_idname)
+        layout.operator(VIEW3D_OT_ShapeKeyframe.bl_idname)
 
 class VIEW3D_PT_Sensor(bpy.types.Panel):
     """"""
     bl_label = "Sensor"
-    bl_idname = "view3d.sensor_panel"
+    bl_idname = "VIEW3D_PT_Sensor"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Multi-IR Render"
@@ -785,13 +1009,13 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         # box_sensor.separator()
         layout_rand_col = layout.column(align=True)
         layout_row = layout_rand_col.row(align=True)
-        layout_split = layout_row.split(factor=0.3, align=True)
-        layout_split.label(text="Sample:")
+        layout_split = layout_row.split(factor=0.35, align=True)
+        layout_split.label(text="Sample mesh:")
         layout_split.prop(scene, "random_positions_ref")
         # box_rand_col.separator(factor=0.2, type='SPACE')
         # box_rand_col.prop(scene, "random_positions_ref")
         layout_row = layout_rand_col.row(align=True)
-        layout_split = layout_row.split(factor=0.3, align=True)
+        layout_split = layout_row.split(factor=0.35, align=True)
         layout_split.label(text="Orientation:")
         layout_split.prop(scene, "sensor_orientation")
         # box_rand_col.separator(factor=0.2, type='SPACE')
@@ -802,23 +1026,31 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_rand_angle_row.label(text="Number of Rotations:")
         layout_rand_angle_row.prop(scene, "angle_restriction")
         layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
-        layout.operator(VIEW3D_OT_SetSensorKeyframe.bl_idname)
+        layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
         # TODO: add button to add Natural IR sources
+        # TODO: point to 3d cursor
 
 classes = (
     VIEW3D_OT_MultiviewRender,
     VIEW3D_OT_InfoBox,
     VIEW3D_OT_ExportMetadata,
+    VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_ResetPose,
-    VIEW3D_OT_SetArmatureKeyframe,
+    VIEW3D_OT_ArmatureKeyframe,
+    VIEW3D_OT_RandomMeshShape,
+    VIEW3D_OT_ResetMeshShape,
+    VIEW3D_OT_UpdateJointPositions,
+    VIEW3D_OT_ShapeKeyframe,
     VIEW3D_OT_AddSensor,
     VIEW3D_OT_MoveSensorToOrigin,
     VIEW3D_OT_RandomSensorPosition,
     # VIEW3D_OT_RandomSensorRotation,
-    VIEW3D_OT_SetSensorKeyframe,
+    VIEW3D_OT_SensorKeyframe,
     VIEW3D_PT_Export,
+    VIEW3D_PT_MANO_Model,
     VIEW3D_PT_Pose,
+    VIEW3D_PT_Shape,
     VIEW3D_PT_Sensor,
 )
 
