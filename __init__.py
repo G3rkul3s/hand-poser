@@ -22,7 +22,7 @@ import json
 from math import radians
 from mathutils import Vector, Quaternion, Matrix
 
-from .load_mano import load_mano_hand, load_regressor, BONE_NAMES
+from .load_mano import load_mano_hand, load_regressor, MANO_BONE_NAMES, FINGERTIPS
 
 # TODO: delete me later ???
 """def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
@@ -115,42 +115,6 @@ def get_bones_data(armature, context): # TODO: rework
     bpy.ops.object.mode_set(mode=current_mode)
     context.view_layer.objects.active = active_curr
     return bones_data
-
-def set_compositing_nodetree():
-    bpy.context.scene.use_nodes = True
-    tree = bpy.context.scene.node_tree
-    tree.nodes.clear() # TODO: let the user deside
-    render_layers = tree.nodes.new(type='CompositorNodeRLayers')
-    lens_distortion = tree.nodes.new(type='CompositorNodeLensdist')
-    hue_correct = tree.nodes.new(type='CompositorNodeHueCorrect')
-    hue_correct.name = "BlackAndWhiteFilter"
-    composite = tree.nodes.new(type='CompositorNodeComposite')
-    render_layers.location = (0, 0)
-    lens_distortion.location = (300, 0)
-    hue_correct.location = (500, 0)
-    composite.location = (900, 0)
-    # Set the distortion to 1.0
-    lens_distortion.inputs["Distortion"].default_value = 1.0
-    # Set the saturation curve to a flat line at 0.0
-    sat_curve = hue_correct.mapping.curves[1]  # 0=H, 1=S, 2=V
-    # Remove existing points
-    for i in reversed(range(2, len(sat_curve.points))):
-        sat_curve.points.remove(sat_curve.points[i])
-    sat_curve.points[0].location = (0.0, 0.0)
-    sat_curve.points[1].location = (1.0, 0.0)
-    # Link the nodes together
-    tree.links.new(render_layers.outputs['Image'], lens_distortion.inputs['Image'])
-    tree.links.new(lens_distortion.outputs['Image'], hue_correct.inputs['Image'])
-    tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
-    if bpy.context.scene.light_selection == 'NL':
-        hue_correct.mute = True
-
-def setup_scene_later():
-    scene = bpy.context.scene
-    if scene:
-        set_compositing_nodetree()
-        return None  # Stop timer
-    return 0.5  # Try again in 0.5 seconds
 
 def generate_random_pose(armature, context):
     active_curr = context.view_layer.objects.active
@@ -256,25 +220,31 @@ def get_bones_list(bone, use_world_space, matrix_world):
     bone_info["children"] = children_info
     return bone_info
 
-def update_joint_positions(armature_obj, J_regressor, v_shaped, context):
+def update_joint_positions(armature_obj, J_regressor, j_template, vert_shaped, context):
     """
     Updates the joint (bone) positions in the armature based on the current shape of the mesh.
     """
     # Compute new joint positions
-    joints = J_regressor @ v_shaped # shape (16, 3)
+    joints = J_regressor @ vert_shaped # shape (16, 3)
     active_curr = context.view_layer.objects.active
     context.view_layer.objects.active = armature_obj
     current_mode = context.mode
     bpy.ops.object.mode_set(mode='EDIT')
     edit_bones = armature_obj.data.edit_bones
 
-    for i, name in enumerate(BONE_NAMES):
+    for i, name in enumerate(MANO_BONE_NAMES):
         if name not in edit_bones:
             continue
         bone = edit_bones[name]
         new_head = joints[i]
         new_tail = bone.tail + Vector(new_head - bone.head)
-
+        bone.head = new_head
+        bone.tail = new_tail
+    
+    for name, index in FINGERTIPS.items():
+        bone = edit_bones[name]
+        new_head = vert_shaped[index]
+        new_tail = bone.tail + Vector(new_head - bone.head)
         bone.head = new_head
         bone.tail = new_tail
 
@@ -338,9 +308,9 @@ bpy.types.Scene.save_folder = bpy.props.StringProperty(
     subtype='DIR_PATH'
 )
 
-bpy.types.Scene.random_pose_checkbox = bpy.props.BoolProperty(
-    name="Use Random Poses",
-    description="Generate and render random poses",
+bpy.types.Scene.override_compositing = bpy.props.BoolProperty(
+    name="Override",
+    description="Override the existing compositing node tree",
     default=False,
 #    update=
 )
@@ -395,14 +365,16 @@ bpy.types.Scene.selected_bone_collection = bpy.props.EnumProperty(
 
 bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
     name="",
-    description="Choose a sensor orientation",
+    description="Choose a sensor orientation (where it points)",
     items=[
         ('KEEP', "Keep", "Keep the original orientation"),
         ('NORMAL', "Normals", "Pointing along the normals of the sampling mesh"),
         ('NEGNORMAL', "Negative normals", "Pointing along the negative of the normals of the sampling mesh"),
-        ('ORIGIN', "Sample origin", "Pointing to the origin of the sampling mesh")
+        ('ORIGIN', "Sample origin", "Pointing to the origin of the sampling mesh"),
+        ('CURSOR', "3D Cursor", "Pointing to the 3D cursor")
     ],
     default='KEEP',
+    # update=, # TODO: update selected sensors orientation
 )
 
 """bpy.types.Scene.angle_restriction = bpy.props.EnumProperty(
@@ -465,7 +437,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         target_collection = bpy.data.collections.get(collection_name)
         if not target_collection:
             target_collection = bpy.data.collections.new(collection_name)
-            bpy.context.scene.collection.children.link(target_collection)
+            context.scene.collection.children.link(target_collection)
         
         # Create an empty
         empty = bpy.data.objects.new(name=empty_name, object_data=None)
@@ -475,7 +447,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 
         # Create cameras
         
-        render = bpy.context.scene.render
+        render = context.scene.render
         view_names = {v.name for v in render.views}
         
         cam_left_data = new_sensor_camera()
@@ -717,6 +689,13 @@ class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
             rotation_quat = from_dir.rotation_difference(to_dir)
             sensor.rotation_mode = 'QUATERNION'
             sensor.rotation_quaternion = rotation_quat
+        elif orient == "CURSOR":
+            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+            from_dir = Vector((0.0, 0.0, -1.0))
+            to_dir = context.scene.cursor.location - sensor.location
+            rotation_quat = from_dir.rotation_difference(to_dir)
+            sensor.rotation_mode = 'QUATERNION'
+            sensor.rotation_quaternion = rotation_quat
         
         context.view_layer.objects.active = sensor
         sensor.select_set(True)
@@ -820,6 +799,7 @@ class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
         elif mesh_left:
             for key_left in mesh_left.data.shape_keys.key_blocks:
                 key_left.value = random.gauss(0.0, 1.5) # TODO: std range slider
+        bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
         return{'FINISHED'}
 
 class VIEW3D_OT_ShapeKeyframe(bpy.types.Operator):
@@ -858,31 +838,49 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
     def poll(cls, context):
         try:
             return ((context.scene.deformable_mesh_right_ref) and 
-                    (context.scene.deformable_mesh_right_ref.data.shape_keys) or
+                    (context.scene.deformable_mesh_right_ref.data.shape_keys) and 
+                    (context.scene.deformable_mesh_right_ref.parent.type == 'ARMATURE') or
                     (context.scene.deformable_mesh_left_ref) and 
-                    (context.scene.deformable_mesh_left_ref.data.shape_keys))
+                    (context.scene.deformable_mesh_left_ref.data.shape_keys) and 
+                    (context.scene.deformable_mesh_left_ref.parent.type == 'ARMATURE'))
         except: return False
 
-    def execute(self, context): # TODO: do
+    def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
+            # Temporarily disable the Armature modifier
+            for mod in mesh_right.modifiers:
+                if mod.type == 'ARMATURE':
+                    mod.show_viewport = False
             depsgraph = bpy.context.evaluated_depsgraph_get()
             eval_obj = mesh_right.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             vertices = np.array([v.co[:] for v in eval_mesh.vertices])
+            # Re-enable the Armature modifier # TODO: enable only if was enabled
+            for mod in mesh_right.modifiers:
+                if mod.type == 'ARMATURE':
+                    mod.show_viewport = True
             # TODO: cash the regressor
-            J_regressor= load_regressor('RIGHT')
-            update_joint_positions(mesh_right.parent, J_regressor, vertices, context)
+            J_regressor, j_template = load_regressor('RIGHT')
+            update_joint_positions(mesh_right.parent, J_regressor, j_template, vertices, context)
         
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
+            # Temporarily disable the Armature modifier
+            for mod in mesh_left.modifiers:
+                if mod.type == 'ARMATURE':
+                    mod.show_viewport = False
             depsgraph = bpy.context.evaluated_depsgraph_get()
             eval_obj = mesh_left.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             vertices = np.array([v.co[:] for v in eval_mesh.vertices])
+            # Re-enable the Armature modifier # TODO: enable only if was enabled
+            for mod in mesh_left.modifiers:
+                if mod.type == 'ARMATURE':
+                    mod.show_viewport = True
             # TODO: cash the regressor
-            J_regressor= load_regressor('LEFT')
-            update_joint_positions(mesh_left.parent, J_regressor, vertices, context)
+            J_regressor, j_template = load_regressor('LEFT')
+            update_joint_positions(mesh_left.parent, J_regressor, j_template, vertices, context)
         return{'FINISHED'}
     
 class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
@@ -892,7 +890,49 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        load_mano_hand(context.scene.hand_selection)
+        obj = load_mano_hand(context.scene.hand_selection)
+        obj.location = context.scene.cursor.location
+        return{'FINISHED'}
+
+class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
+    bl_idname = "view3d.configure_compositing"
+    bl_label = "Configure Compositing"
+    bl_description = "Configure compositing node tree to simulate the infrared sensor"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        context.scene.use_nodes = True
+        tree = context.scene.node_tree
+        if context.scene.override_compositing:
+            tree.nodes.clear()
+        render_layers = context.scene.node_tree.nodes.get("Render Layers")
+        if not render_layers:
+            render_layers = tree.nodes.new(type='CompositorNodeRLayers')
+        composite = context.scene.node_tree.nodes.get("Composite")
+        if not composite:
+            composite = tree.nodes.new(type='CompositorNodeComposite')
+        lens_distortion = tree.nodes.new(type='CompositorNodeLensdist')
+        hue_correct = tree.nodes.new(type='CompositorNodeHueCorrect')
+        hue_correct.name = "BlackAndWhiteFilter"
+        render_layers.location = (0, 0)
+        lens_distortion.location = (300, 0)
+        hue_correct.location = (500, 0)
+        composite.location = (900, 0)
+        # Set the distortion to 1.0
+        lens_distortion.inputs["Distortion"].default_value = 1.0
+        # Set the saturation curve to a flat line at 0.0
+        sat_curve = hue_correct.mapping.curves[1]  # 0=H, 1=S, 2=V
+        # Remove existing points
+        for i in reversed(range(2, len(sat_curve.points))):
+            sat_curve.points.remove(sat_curve.points[i])
+        sat_curve.points[0].location = (0.0, 0.0)
+        sat_curve.points[1].location = (1.0, 0.0)
+        # Link the nodes together
+        tree.links.new(render_layers.outputs['Image'], lens_distortion.inputs['Image'])
+        tree.links.new(lens_distortion.outputs['Image'], hue_correct.inputs['Image'])
+        tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
+        if context.scene.light_selection == 'NL':
+            hue_correct.mute = True
         return{'FINISHED'}
 
 class VIEW3D_PT_Export(bpy.types.Panel):
@@ -959,9 +999,6 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_split.operator(VIEW3D_OT_GeneratePose.bl_idname)
         layout_split.operator(VIEW3D_OT_ResetPose.bl_idname)
         layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
-        # TODO: random shape operator
-        # TODO: metall frame + sensor pos. as a separate .blend file ???
-        # TODO: sensor model as a separate .blend file
 
 class VIEW3D_PT_Shape(bpy.types.Panel):
     """"""
@@ -1004,6 +1041,10 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         # layout.label(text="Sensor:")
         # box_sensor = layout.box()
         layout.operator(VIEW3D_OT_AddSensor.bl_idname)
+        layout_row = layout.row(align=True)
+        layout_split = layout_row.split(factor=0.7, align=True)
+        layout_split.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
+        layout_split.prop(scene, "override_compositing")
         layout.prop(scene, "origin_ref")
         layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
         # box_sensor.separator()
@@ -1027,8 +1068,8 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_rand_angle_row.prop(scene, "angle_restriction")
         layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
         layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
-        # TODO: add button to add Natural IR sources
-        # TODO: point to 3d cursor
+        # TODO: add button to consider Natural IR sources
+        # TODO: metall frame + sensor as a separate .blend file ???
 
 classes = (
     VIEW3D_OT_MultiviewRender,
@@ -1043,6 +1084,7 @@ classes = (
     VIEW3D_OT_UpdateJointPositions,
     VIEW3D_OT_ShapeKeyframe,
     VIEW3D_OT_AddSensor,
+    VIEW3D_OT_ConfigureCompositing,
     VIEW3D_OT_MoveSensorToOrigin,
     VIEW3D_OT_RandomSensorPosition,
     # VIEW3D_OT_RandomSensorRotation,
@@ -1057,8 +1099,6 @@ classes = (
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    # Setup compositing Nodetree
-    bpy.app.timers.register(setup_scene_later) # TODO: move to a button in "render"
     print("IR Style Render Registered (N-Panel)")
 
 def unregister():
