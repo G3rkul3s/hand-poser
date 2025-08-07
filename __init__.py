@@ -291,7 +291,7 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
     description="Choose a file extension",
     items=[
         ('JSON', ".json", "Export to .json"),
-        ('FBS', ".fbs", "Export to .fbs")
+        # ('FBS', ".fbs", "Export to .fbs")
     ],
     default='JSON',
 )
@@ -368,9 +368,9 @@ bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
     description="Choose a sensor orientation (where it points)",
     items=[
         ('KEEP', "Keep", "Keep the original orientation"),
-        ('NORMAL', "Normals", "Pointing along the normals of the sampling mesh"),
-        ('NEGNORMAL', "Negative normals", "Pointing along the negative of the normals of the sampling mesh"),
-        ('ORIGIN', "Sample origin", "Pointing to the origin of the sampling mesh"),
+        ('NORMAL', "Normals", "Pointing along the normals of the sample mesh"),
+        ('NEGNORMAL', "Negative normals", "Pointing along the negative of the normals of the sample mesh"),
+        ('ORIGIN', "Mesh origin", "Pointing to the origin of the sample mesh"),
         ('CURSOR', "3D Cursor", "Pointing to the 3D cursor")
     ],
     default='KEEP',
@@ -578,6 +578,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     bl_description="Export metadata for each animation frame"
 
     def execute(self, context):
+        # TODO: rework, save for all frames
         # Check for sensors
         sensor_collection = bpy.data.collections.get('Sensors')
         if not sensor_collection:
@@ -589,7 +590,6 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             self.report({'ERROR'}, "No save folder selected")
             return {'CANCELLED'}
         # Save Metadata
-        # TODO: save origin???
         sensors_data = get_sensors_data(sensor_collection)
         armature = context.scene.armature_ref
         if not armature or armature.type != 'ARMATURE':
@@ -730,7 +730,7 @@ class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
 class VIEW3D_OT_SensorKeyframe(bpy.types.Operator):
     bl_idname = "view3d.sensor_keyframe"
     bl_label = "Keyframe"
-    bl_description = "" # TODO: add description
+    bl_description = "Set the current sensor postion and orientation as a keyframe"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -805,7 +805,7 @@ class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
 class VIEW3D_OT_ShapeKeyframe(bpy.types.Operator):
     bl_idname = "view3d.shape_keyframe"
     bl_label = "Keyframe"
-    bl_description = "" # TODO: add description
+    bl_description = "Set the current shape as a keyframe"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -834,8 +834,11 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
     bl_description = "Update joint positions of the deformed mesh"
     bl_options = {'REGISTER', 'UNDO'}
 
+    J_regressor = None
+    j_template = None
+
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context): # TODO: switch to selected
         try:
             return ((context.scene.deformable_mesh_right_ref) and 
                     (context.scene.deformable_mesh_right_ref.data.shape_keys) and 
@@ -849,38 +852,42 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
             # Temporarily disable the Armature modifier
+            mod_show_list = []
             for mod in mesh_right.modifiers:
                 if mod.type == 'ARMATURE':
+                    mod_show_list.append(mod.show_viewport)
                     mod.show_viewport = False
             depsgraph = bpy.context.evaluated_depsgraph_get()
             eval_obj = mesh_right.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             vertices = np.array([v.co[:] for v in eval_mesh.vertices])
-            # Re-enable the Armature modifier # TODO: enable only if was enabled
-            for mod in mesh_right.modifiers:
+            # Re-enable the Armature modifier
+            for i, mod in enumerate(mesh_right.modifiers):
                 if mod.type == 'ARMATURE':
-                    mod.show_viewport = True
-            # TODO: cash the regressor
-            J_regressor, j_template = load_regressor('RIGHT')
-            update_joint_positions(mesh_right.parent, J_regressor, j_template, vertices, context)
+                    mod.show_viewport = mod_show_list[i]
+            if self.J_regressor is None and self.j_template is None:
+                self.J_regressor, self.j_template = load_regressor('RIGHT')
+            update_joint_positions(mesh_right.parent, self.J_regressor, self.j_template, vertices, context)
         
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
             # Temporarily disable the Armature modifier
+            mod_show_list = []
             for mod in mesh_left.modifiers:
                 if mod.type == 'ARMATURE':
+                    mod_show_list.append(mod.show_viewport)
                     mod.show_viewport = False
             depsgraph = bpy.context.evaluated_depsgraph_get()
             eval_obj = mesh_left.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             vertices = np.array([v.co[:] for v in eval_mesh.vertices])
             # Re-enable the Armature modifier # TODO: enable only if was enabled
-            for mod in mesh_left.modifiers:
+            for i, mod in enumerate(mesh_left.modifiers):
                 if mod.type == 'ARMATURE':
-                    mod.show_viewport = True
-            # TODO: cash the regressor
-            J_regressor, j_template = load_regressor('LEFT')
-            update_joint_positions(mesh_left.parent, J_regressor, j_template, vertices, context)
+                    mod.show_viewport = mod_show_list[i]
+            if self.J_regressor is None and self.j_template is None:
+                self.J_regressor, self.j_template = load_regressor('LEFT')
+            update_joint_positions(mesh_left.parent, self.J_regressor, self.j_template, vertices, context)
         return{'FINISHED'}
     
 class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
@@ -897,7 +904,7 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
     bl_idname = "view3d.configure_compositing"
     bl_label = "Configure Compositing"
-    bl_description = "Configure compositing node tree to simulate the infrared sensor"
+    bl_description = "Configure the compositing node tree to simulate the infrared sensor"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -975,6 +982,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         
         layout.prop(scene, "hand_selection")
         layout.operator(VIEW3D_OT_AddMANOHand.bl_idname)
+        # TODO: separate .blend with SMPL-x with my hands
 
 class VIEW3D_PT_Pose(bpy.types.Panel):
     """"""
