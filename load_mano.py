@@ -70,8 +70,7 @@ def load_regressor(hand):
     mano_path = ROOT_DIR / 'data' / f"MANO_{hand}.npz"
     data = np.load(mano_path)
     j_regressor = data['J_regressor']
-    joints = data['J']
-    return j_regressor, joints
+    return j_regressor
 
 def create_mano_mesh(name, vertices, faces):
     # Create mesh and object

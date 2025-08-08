@@ -116,41 +116,7 @@ def get_bones_data(armature, context): # TODO: rework
     context.view_layer.objects.active = active_curr
     return bones_data
 
-def generate_random_pose(armature, context):
-    active_curr = context.view_layer.objects.active
-    context.view_layer.objects.active = armature
-    current_mode = context.mode
-    bpy.ops.object.mode_set(mode='POSE')
-    bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
-    for bone in armature.pose.bones:
-        if bone_collection and bone.name not in bone_collection.bones:
-            continue
-        limit_rot = next((c for c in bone.constraints if c.type == 'LIMIT_ROTATION'), None)
-        min_x = -math.pi
-        max_x = math.pi
-        min_y = -math.pi
-        max_y = math.pi
-        min_z = -math.pi
-        max_z = math.pi
-        if limit_rot:
-            if limit_rot.use_limit_x:
-                min_x = limit_rot.min_x
-                max_x = limit_rot.max_x
-            if limit_rot.use_limit_y:
-                min_y = limit_rot.min_y
-                max_y = limit_rot.max_y
-            if limit_rot.use_limit_z:
-                min_z = limit_rot.min_z
-                max_z = limit_rot.max_z
-        bone.rotation_mode = 'XYZ'
-        bone.rotation_euler = (
-            random.uniform(min_x, max_x),
-            random.uniform(min_y, max_y),
-            random.uniform(min_z, max_z))
-    bpy.ops.object.mode_set(mode=current_mode)
-    context.view_layer.objects.active = active_curr
-
-"""def add_constraints_to_armature(armature_name="Armature"):
+"""def add_constraints_to_armature(armature_name="Armature"): # TODO: maybe do this inside load
     obj = bpy.data.objects.get(armature_name)
     if not obj or obj.type != 'ARMATURE':
         print(f"Armature '{armature_name}' not found.")
@@ -220,7 +186,7 @@ def get_bones_list(bone, use_world_space, matrix_world):
     bone_info["children"] = children_info
     return bone_info
 
-def update_joint_positions(armature_obj, J_regressor, j_template, vert_shaped, context):
+def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     """
     Updates the joint (bone) positions in the armature based on the current shape of the mesh.
     """
@@ -374,7 +340,7 @@ bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
         ('CURSOR', "3D Cursor", "Pointing to the 3D cursor")
     ],
     default='KEEP',
-    # update=, # TODO: update selected sensors orientation
+    # update=,
 )
 
 """bpy.types.Scene.angle_restriction = bpy.props.EnumProperty(
@@ -517,12 +483,46 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
     bl_description="Generate a rondom pose"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.armature_ref)
+        except: return False
+
     def execute(self, context):
         armature = context.scene.armature_ref
-        if not armature:
-            self.report({'ERROR'}, f"Please select the armature.")
-            return {'CANCELLED'}
-        generate_random_pose(armature, context)
+        active_curr = context.view_layer.objects.active
+        context.view_layer.objects.active = armature
+        current_mode = context.mode
+        bpy.ops.object.mode_set(mode='POSE')
+        bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
+        for bone in armature.pose.bones:
+            if bone_collection and bone.name not in bone_collection.bones:
+                continue
+            limit_rot = next((c for c in bone.constraints if c.type == 'LIMIT_ROTATION'), None)
+            min_x = -math.pi
+            max_x = math.pi
+            min_y = -math.pi
+            max_y = math.pi
+            min_z = -math.pi
+            max_z = math.pi
+            if limit_rot:
+                if limit_rot.use_limit_x:
+                    min_x = limit_rot.min_x
+                    max_x = limit_rot.max_x
+                if limit_rot.use_limit_y:
+                    min_y = limit_rot.min_y
+                    max_y = limit_rot.max_y
+                if limit_rot.use_limit_z:
+                    min_z = limit_rot.min_z
+                    max_z = limit_rot.max_z
+            bone.rotation_mode = 'XYZ'
+            bone.rotation_euler = (
+                random.uniform(min_x, max_x),
+                random.uniform(min_y, max_y),
+                random.uniform(min_z, max_z))
+        bpy.ops.object.mode_set(mode=current_mode)
+        context.view_layer.objects.active = active_curr
         return {'FINISHED'}
     
 class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
@@ -532,18 +532,24 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
     bl_description = "Set the current pose as a keyframe"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.armature_ref)
+        except: return False
+
     def execute(self, context):
         armature = context.scene.armature_ref
-        if not armature:
-            self.report({'ERROR'}, f"Please select the armature.")
-            return {'CANCELLED'}
+        bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         active_curr = context.view_layer.objects.active
         context.view_layer.objects.active = armature
         current_mode = bpy.context.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
+            if bone_collection and bone.name not in bone_collection.bones:
+                continue
             bone.keyframe_insert(data_path="location")
-            bone.keyframe_insert(data_path="rotation_euler")
+            bone.keyframe_insert(data_path="rotation_quaternion")
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         return {'FINISHED'}
@@ -555,16 +561,22 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
     bl_description="Reset the pose"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.armature_ref)
+        except: return False
+
     def execute(self, context):
         armature = context.scene.armature_ref
-        if not armature:
-            self.report({'ERROR'}, f"Please select the armature.")
-            return {'CANCELLED'}
+        bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         active_curr = context.view_layer.objects.active
         context.view_layer.objects.active = armature
         current_mode = context.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
+            if bone_collection and bone.name not in bone_collection.bones:
+                continue
             bone.rotation_mode = 'XYZ'
             bone.rotation_euler = (0,0,0)
         bpy.ops.object.mode_set(mode=current_mode)
@@ -630,17 +642,27 @@ class VIEW3D_OT_MoveSensorToOrigin(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            return ((context.object.type == 'EMPTY') and 
-                    (context.object.name in bpy.data.collections.get('Sensors').objects))
+            if not context.selected_objects:
+                return False
+            # Check the "Sensors" collection
+            sensors_coll = bpy.data.collections.get('Sensors')
+            if not sensors_coll:
+                return False
+            # Check every selected object
+            for obj in context.selected_objects:
+                if obj.type != 'EMPTY':
+                    return False
+                if obj.name not in sensors_coll.objects:
+                    return False
+            return True
         except: return False
     
     def execute(self, context):
-        obj = context.object
+        sensor_list = context.selected_objects
         origin = context.scene.origin_ref
-        if origin:
-            obj.location = origin.location
-        else:
-            obj.location = (0, 0, 0)
+        origin_loc = origin.location if origin else (0, 0, 0)
+        for sensor in sensor_list:
+            sensor.location = origin_loc
         return{'FINISHED'}
 
 class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
@@ -652,54 +674,63 @@ class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            return ((context.object.type == 'EMPTY') and 
-                    (context.object.name in bpy.data.collections.get('Sensors').objects) and 
-                    (context.scene.random_positions_ref))
+            if not context.selected_objects:
+                return False
+            # Check the "Sensors" collection
+            sensors_coll = bpy.data.collections.get('Sensors')
+            if not sensors_coll:
+                return False
+            # Check every selected object
+            for obj in context.selected_objects:
+                if obj.type != 'EMPTY':
+                    return False
+                if obj.name not in sensors_coll.objects:
+                    return False
+            # Check that scene property exists
+            return bool(context.scene.random_positions_ref)
         except: return False
 
     def execute(self, context):
-        sensor = context.view_layer.objects.active
-        # current_mode = context.mode
-        # bpy.ops.object.mode_set(mode='OBJECT')
+        sensor_list = context.selected_objects
         sample = context.scene.random_positions_ref
         context.view_layer.objects.active = sample
         sample_mesh = sample.data
         world_matrix = sample.matrix_world
-        vert_rand = sample_mesh.vertices[random.randint(0, len(sample_mesh.vertices)-1)]
-        sensor.location = world_matrix @ vert_rand.co
-        orient = context.scene.sensor_orientation
-        if orient == "NORMAL":
-            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
-            from_dir = Vector((0.0, 0.0, -1.0))
-            to_dir = vert_rand.normal
-            rotation_quat = from_dir.rotation_difference(to_dir)
-            sensor.rotation_mode = 'QUATERNION'
-            sensor.rotation_quaternion = rotation_quat
-        elif orient == "NEGNORMAL":
-            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
-            from_dir = Vector((0.0, 0.0, 1.0))
-            to_dir = vert_rand.normal
-            rotation_quat = from_dir.rotation_difference(to_dir)
-            sensor.rotation_mode = 'QUATERNION'
-            sensor.rotation_quaternion = rotation_quat
-        elif orient == "ORIGIN":
-            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
-            from_dir = Vector((0.0, 0.0, -1.0))
-            to_dir = sample.location - sensor.location
-            rotation_quat = from_dir.rotation_difference(to_dir)
-            sensor.rotation_mode = 'QUATERNION'
-            sensor.rotation_quaternion = rotation_quat
-        elif orient == "CURSOR":
-            sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
-            from_dir = Vector((0.0, 0.0, -1.0))
-            to_dir = context.scene.cursor.location - sensor.location
-            rotation_quat = from_dir.rotation_difference(to_dir)
-            sensor.rotation_mode = 'QUATERNION'
-            sensor.rotation_quaternion = rotation_quat
-        
+        for sensor in sensor_list:
+            vert_rand = sample_mesh.vertices[random.randint(0, len(sample_mesh.vertices)-1)]
+            sensor.location = world_matrix @ vert_rand.co
+            orient = context.scene.sensor_orientation
+            if orient == "NORMAL":
+                sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+                from_dir = Vector((0.0, 0.0, -1.0))
+                to_dir = vert_rand.normal
+                rotation_quat = from_dir.rotation_difference(to_dir)
+                sensor.rotation_mode = 'QUATERNION'
+                sensor.rotation_quaternion = rotation_quat
+            elif orient == "NEGNORMAL":
+                sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+                from_dir = Vector((0.0, 0.0, 1.0))
+                to_dir = vert_rand.normal
+                rotation_quat = from_dir.rotation_difference(to_dir)
+                sensor.rotation_mode = 'QUATERNION'
+                sensor.rotation_quaternion = rotation_quat
+            elif orient == "ORIGIN":
+                sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+                from_dir = Vector((0.0, 0.0, -1.0))
+                to_dir = sample.location - sensor.location
+                rotation_quat = from_dir.rotation_difference(to_dir)
+                sensor.rotation_mode = 'QUATERNION'
+                sensor.rotation_quaternion = rotation_quat
+            elif orient == "CURSOR":
+                sensor.rotation_quaternion = Vector((1.0, 0.0, 0.0, 0.0))
+                from_dir = Vector((0.0, 0.0, -1.0))
+                to_dir = context.scene.cursor.location - sensor.location
+                rotation_quat = from_dir.rotation_difference(to_dir)
+                sensor.rotation_mode = 'QUATERNION'
+                sensor.rotation_quaternion = rotation_quat
+        for sensor in sensor_list:
+            sensor.select_set(True)
         context.view_layer.objects.active = sensor
-        sensor.select_set(True)
-        # bpy.ops.object.mode_set(mode=current_mode)
         return{'FINISHED'}
 
 """class VIEW3D_OT_RandomSensorRotation(bpy.types.Operator):
@@ -736,12 +767,26 @@ class VIEW3D_OT_SensorKeyframe(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            return ((context.object.type == 'EMPTY') and 
-                    (context.object.name in bpy.data.collections.get('Sensors').objects))
+            if not context.selected_objects:
+                return False
+            # Check the "Sensors" collection
+            sensors_coll = bpy.data.collections.get('Sensors')
+            if not sensors_coll:
+                return False
+            # Check every selected object
+            for obj in context.selected_objects:
+                if obj.type != 'EMPTY':
+                    return False
+                if obj.name not in sensors_coll.objects:
+                    return False
+            return True
         except: return False
 
     def execute(self, context):
-        # TODO: implement
+        sensor_list = context.selected_objects
+        for sensor in sensor_list:
+            sensor.keyframe_insert(data_path="location")
+            sensor.keyframe_insert(data_path="rotation_quaternion")
         return{'FINISHED'}
 
 class VIEW3D_OT_ResetMeshShape(bpy.types.Operator):
@@ -834,11 +879,11 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
     bl_description = "Update joint positions of the deformed mesh"
     bl_options = {'REGISTER', 'UNDO'}
 
-    J_regressor = None
-    j_template = None
+    J_regressor_right = None
+    J_regressor_left = None
 
     @classmethod
-    def poll(cls, context): # TODO: switch to selected
+    def poll(cls, context):
         try:
             return ((context.scene.deformable_mesh_right_ref) and 
                     (context.scene.deformable_mesh_right_ref.data.shape_keys) and 
@@ -865,9 +910,10 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             for i, mod in enumerate(mesh_right.modifiers):
                 if mod.type == 'ARMATURE':
                     mod.show_viewport = mod_show_list[i]
-            if self.J_regressor is None and self.j_template is None:
-                self.J_regressor, self.j_template = load_regressor('RIGHT')
-            update_joint_positions(mesh_right.parent, self.J_regressor, self.j_template, vertices, context)
+            # Cash the regressor and the template
+            if self.J_regressor_right is None:
+                self.J_regressor_right = load_regressor('RIGHT')
+            update_joint_positions(mesh_right.parent, self.J_regressor_right, vertices, context)
         
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
@@ -881,13 +927,14 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             eval_obj = mesh_left.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             vertices = np.array([v.co[:] for v in eval_mesh.vertices])
-            # Re-enable the Armature modifier # TODO: enable only if was enabled
+            # Re-enable the Armature modifier
             for i, mod in enumerate(mesh_left.modifiers):
                 if mod.type == 'ARMATURE':
                     mod.show_viewport = mod_show_list[i]
-            if self.J_regressor is None and self.j_template is None:
-                self.J_regressor, self.j_template = load_regressor('LEFT')
-            update_joint_positions(mesh_left.parent, self.J_regressor, self.j_template, vertices, context)
+            # Cash the regressor and the template
+            if self.J_regressor_left is None:
+                self.J_regressor_left = load_regressor('LEFT')
+            update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
         return{'FINISHED'}
     
 class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
@@ -965,7 +1012,7 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         layout_row = layout.row(align=True)
         split_meta = layout_row.split(factor=0.6, align=True)
         split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname)
-        split_meta.prop(scene, "file_extension_selection") # TODO: implement functionality
+        split_meta.prop(scene, "file_extension_selection")
         layout.prop(scene, "save_folder")
 
 class VIEW3D_PT_MANO_Model(bpy.types.Panel):
@@ -982,7 +1029,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         
         layout.prop(scene, "hand_selection")
         layout.operator(VIEW3D_OT_AddMANOHand.bl_idname)
-        # TODO: separate .blend with SMPL-x with my hands
+        # TODO: create separate .blend with SMPL-x with my hands
 
 class VIEW3D_PT_Pose(bpy.types.Panel):
     """"""
