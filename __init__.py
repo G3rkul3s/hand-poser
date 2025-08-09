@@ -59,63 +59,6 @@ ensure_site_packages([
 # from manotorch.manolayer import ManoLayer, MANOOutput
 # from .VIRTOSHA.FlatBuffers import FrameBatch
 
-def new_sensor_camera(cam_name="Camera"):
-    cam_data = bpy.data.cameras.new(name=cam_name)
-    # cam_data.type = 'PANO'
-    # cam_data.panorama_type = 'FISHEYE_EQUISOLID'
-    # cam_data.fisheye_lens = 1.50
-    # cam_data.fisheye_fov = radians(170.0)
-    cam_data.type = 'PERSP'
-    cam_data.lens = 2.1
-    cam_data.clip_start = 0.001
-    cam_data.clip_end = 50
-    cam_data.sensor_fit = 'AUTO'
-    # cam_data.sensor_width = 4
-    cam_data.sensor_width = 14
-    cam_data.display_size = 0.3
-    return cam_data
-
-def new_ir_light(light_name='Spot'):
-    spot_data = bpy.data.lights.new(name=light_name, type='SPOT')
-    spot_data.energy = 0.1
-    spot_data.spot_size = radians(180.0)
-    spot_data.spot_blend = 0.3
-    return spot_data
-
-def get_sensors_data(sensor_collection):
-    sensors_data = []
-    for obj in sensor_collection.objects:
-        if obj.type == 'EMPTY':
-            location = obj.location
-            origin = bpy.context.scene.origin_ref
-            if origin:
-                rot = origin.rotation_euler.to_matrix().to_4x4()
-                trans = Matrix.Translation(origin.location)
-                global_to_local = (trans @ rot).inverted()
-                location = global_to_local @ obj.location
-            sens_info = {
-                "name": obj.name,
-                "location": list(location),
-                "rotation_quaternion": list(obj.rotation_quaternion),
-            }
-            sensors_data.append(sens_info)
-    return sensors_data
-
-def get_bones_data(armature, context): # TODO: rework
-    bones_data = []
-    active_curr = context.view_layer.objects.active
-    context.view_layer.objects.active = armature
-    use_world_space=True
-    current_mode = context.mode
-    bpy.ops.object.mode_set(mode='POSE')
-    for bone in armature.pose.bones:
-        if bone.parent == None:
-            bone_info = get_bones_list(bone, use_world_space, armature.matrix_world)
-            bones_data.append(bone_info)
-    bpy.ops.object.mode_set(mode=current_mode)
-    context.view_layer.objects.active = active_curr
-    return bones_data
-
 """def add_constraints_to_armature(armature_name="Armature"): # TODO: maybe do this inside load
     obj = bpy.data.objects.get(armature_name)
     if not obj or obj.type != 'ARMATURE':
@@ -166,26 +109,6 @@ def update_light_selection(self, context):
     if hue_correct:
         hue_correct.mute = nl_render
 
-def get_bones_list(bone, use_world_space, matrix_world):
-    # Get head/tail in desired space
-    if use_world_space:
-        head = matrix_world @ bone.head
-        tail = matrix_world @ bone.tail
-    else:
-        head = bone.head
-        tail = bone.tail
-    bone_info = {}
-    bone_info["name"] = bone.name
-    bone_info["head"] = list(head)
-    bone_info["tail"] = list(tail)
-    bone_info["rotation_quaternion"] = list(bone.rotation_quaternion)
-    children_info = []
-    for child in bone.children:
-        child_info = get_bones_list(child, use_world_space, matrix_world)
-        children_info.append(child_info)
-    bone_info["children"] = children_info
-    return bone_info
-
 def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     """
     Updates the joint (bone) positions in the armature based on the current shape of the mesh.
@@ -232,7 +155,7 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
 )"""
 
 bpy.types.Scene.light_selection = bpy.props.EnumProperty(
-    name="Lighting",
+    name="",
     description="Choose a lighting for the scene",
     items=[
         ('NL', "Natural", "Use natural lighting"),
@@ -263,13 +186,13 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
 )
 
 bpy.types.Scene.origin_ref = bpy.props.PointerProperty(
-    name="Origin",
+    name="",
     description = "Select a reference frame for the sensors and joints positions. \nLeave empty to use world coordinates",
     type=bpy.types.Object,
 )
 
 bpy.types.Scene.save_folder = bpy.props.StringProperty(
-    name="Save to",
+    name="",
     description="Path to the folder for rendered images and metadata",
     subtype='DIR_PATH'
 )
@@ -392,6 +315,29 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
     bl_description="Add a sensor to the scene"
     bl_options = {'REGISTER', 'UNDO'}
     
+    def new_sensor_camera(self, cam_name="Camera"):
+        cam_data = bpy.data.cameras.new(name=cam_name)
+        # cam_data.type = 'PANO'
+        # cam_data.panorama_type = 'FISHEYE_EQUISOLID'
+        # cam_data.fisheye_lens = 1.50
+        # cam_data.fisheye_fov = radians(170.0)
+        cam_data.type = 'PERSP'
+        cam_data.lens = 2.1
+        cam_data.clip_start = 0.001
+        cam_data.clip_end = 50
+        cam_data.sensor_fit = 'AUTO'
+        # cam_data.sensor_width = 4
+        cam_data.sensor_width = 14
+        cam_data.display_size = 0.3
+        return cam_data
+
+    def new_ir_light(self, light_name='Spot'):
+        spot_data = bpy.data.lights.new(name=light_name, type='SPOT')
+        spot_data.energy = 0.1
+        spot_data.spot_size = radians(180.0)
+        spot_data.spot_blend = 0.3
+        return spot_data
+
     def execute(self, context):
         collection_name  = "Sensors"
         base_name = "Sensor"
@@ -416,7 +362,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         render = context.scene.render
         view_names = {v.name for v in render.views}
         
-        cam_left_data = new_sensor_camera()
+        cam_left_data = self.new_sensor_camera()
         cam_left_obj = bpy.data.objects.new(name=f"Camera_Sensor_{index:03}_Left", 
                                             object_data=cam_left_data)
         cam_left_obj.parent = empty
@@ -431,7 +377,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_left_rv.use = True
             # cam_left_rv.file_suffix = ""
         
-        cam_right_data = new_sensor_camera()
+        cam_right_data = self.new_sensor_camera()
         cam_right_obj = bpy.data.objects.new(name=f"Camera_Sensor_{index:03}_Right", 
                                             object_data=cam_right_data)
         cam_right_obj.parent = empty
@@ -448,7 +394,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         
         # Create IR LEDs
         
-        spot_left_data = new_ir_light()
+        spot_left_data = self.new_ir_light()
         
         spot_obj_left = bpy.data.objects.new(name=f"IR_LED_{index:03}_Left", object_data=spot_left_data)
         spot_obj_left.parent = empty
@@ -456,7 +402,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         spot_obj_left.scale = (0.1, 0.1, 0.1)
         target_collection.objects.link(spot_obj_left)
         
-        spot_right_data = new_ir_light()
+        spot_right_data = self.new_ir_light()
         
         spot_obj_right = bpy.data.objects.new(name=f"IR_LED_{index:03}_Right", object_data=spot_right_data)
         spot_obj_right.parent = empty
@@ -589,37 +535,79 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     bl_label = "Export Metadata"
     bl_description="Export metadata for each animation frame"
 
+    def get_sensors_data(self, context, sensor_collection, matrix_world):
+        sensors_data = []
+        for obj in sensor_collection.objects:
+            if obj.type == 'EMPTY':
+                location = obj.location
+                if context.scene.origin_ref:
+                    location = matrix_world @ obj.location
+                sens_info = {
+                    "name": obj.name,
+                    "location": list(location),
+                    "rotation_quaternion": list(obj.rotation_quaternion),
+                }
+                sensors_data.append(sens_info)
+        return sensors_data
+
+    def get_bone_data(self, bone, matrix_world, armature_world):
+        head = matrix_world @ (armature_world @ bone.head)
+        bone_info = {}
+        bone_info["name"] = bone.name
+        bone_info["location"] = list(head)
+        bone_info["rotation_quaternion"] = list(bone.rotation_quaternion)
+        return bone_info
+
+    def get_armature_data(self, context, armature_collection, matrix_world):
+        armature_data = []
+        active_curr = context.view_layer.objects.active
+        current_mode = context.mode
+        for armature in armature_collection:
+            context.view_layer.objects.active = armature
+            bpy.ops.object.mode_set(mode='POSE')
+            armature_info = {}
+            armature_info["name"] = armature.name
+            armature_info["joints"] = []
+            context.view_layer.objects.active = armature
+            for bone in armature.pose.bones:
+                bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world)
+                armature_info["joints"].append(bone_info)
+            armature_data.append(armature_info)
+        bpy.ops.object.mode_set(mode=current_mode)
+        context.view_layer.objects.active = active_curr
+        return armature_data
+
     def execute(self, context):
-        # TODO: rework, save for all frames
-        # Check for sensors
-        sensor_collection = bpy.data.collections.get('Sensors')
-        if not sensor_collection:
-            self.report({'ERROR'}, "Sensors collection not found")
-            return
         # Check for save folder
         folder = context.scene.save_folder
         if not folder:
             self.report({'ERROR'}, "No save folder selected")
             return {'CANCELLED'}
-        # Save Metadata
-        sensors_data = get_sensors_data(sensor_collection)
-        armature = context.scene.armature_ref
-        if not armature or armature.type != 'ARMATURE':
-            self.report({'ERROR'}, f"Please select the armature.")
-            return
-        bones_data = {}
-        # Get metadata
+        sensor_collection = bpy.data.collections.get('Sensors')
+        armature_collection = [obj for obj in bpy.data.collections.get('Export armature').objects if obj.type == 'ARMATURE']
+        # Get the reference frame
+        origin = context.scene.origin_ref
+        if origin:
+            rot = origin.rotation_euler.to_matrix().to_4x4()
+            trans = Matrix.Translation(origin.location)
+            matrix_world = (trans @ rot).inverted()
+        else:
+            matrix_world = Matrix.Translation(Vector((0,0,0)))
+        print(matrix_world)
+        # Iterate over all frames
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
             context.scene.frame_set(i)
-            bones_data[f"Frame {i}"] = get_bones_data(armature, context)
-            # context.scene.render.filepath = bpy.path.abspath(folder) + "sensor_" + bpy.context.scene.light_selection + f"_Pose_{i+1}"
-            # bpy.ops.render.render(write_still=True)
+            # Get sensor(s) metadata
+            sensors_data = self.get_sensors_data(context, sensor_collection, matrix_world) if sensor_collection else []
+            # Get armature(s) metadata
+            armature_data = self.get_armature_data(context, armature_collection, matrix_world) if armature_collection else []
+            # Save metadata
+            export_filepath = bpy.path.abspath(folder) + f"Frame_{i:03}_metadata.json"
+            with open(export_filepath, 'w') as f:
+                json.dump({"Sensor data":sensors_data, "Armature data":armature_data}, f, indent=4)
         context.scene.frame_set(current_frame)
-        # Save metadata
-        export_filepath = bpy.path.abspath(folder) + "metadata.json"
-        with open(export_filepath, 'w') as f:
-            json.dump({"Sensors":sensors_data, "Bones":bones_data}, f, indent=4)
+        self.report({'INFO'}, "Metadata successfully exported")
         return {'FINISHED'}
 
 class VIEW3D_OT_InfoBox(bpy.types.Operator):
@@ -943,9 +931,15 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_description = "Add a MANO hand model"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context):
+    def execute(self, context): # TODO: create "Export armature" collection
         obj = load_mano_hand(context.scene.hand_selection)
         obj.location = context.scene.cursor.location
+        target_collection = bpy.data.collections.get("Export armature")
+        if not target_collection:
+            target_collection = bpy.data.collections.new("Export armature")
+            context.scene.collection.children.link(target_collection)
+        if obj.name not in target_collection.objects:
+            target_collection.objects.link(obj)
         return{'FINISHED'}
 
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
@@ -1001,10 +995,19 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        # layout.label(text="Render:")
-        # box_render = layout.box()
-        layout.prop(scene, "light_selection")
-        # box_render.prop(scene, "viewport_checkbox")
+        layout_row = layout.row(align=True)
+        split_light = layout_row.split(factor=0.3, align=True)
+        split_light.label(text="Lighting:")
+        split_light.prop(scene, "light_selection")
+        layout_row = layout.row(align=True)
+        split_origin = layout_row.split(factor=0.3, align=True)
+        split_origin.label(text="World Origin:")
+        split_origin.prop(scene, "origin_ref")
+        layout_row = layout.row(align=True)
+        split_compositing = layout_row.split(factor=0.7, align=True)
+        split_compositing.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
+        split_compositing.prop(scene, "override_compositing")
+        layout.separator(type='LINE')
         layout_row = layout.row(align=True)
         split_render = layout_row.split(factor=0.9, align=True)
         split_render.operator(VIEW3D_OT_MultiviewRender.bl_idname)
@@ -1013,7 +1016,10 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         split_meta = layout_row.split(factor=0.6, align=True)
         split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname)
         split_meta.prop(scene, "file_extension_selection")
-        layout.prop(scene, "save_folder")
+        layout_row = layout.row(align=True)
+        split_save = layout_row.split(factor=0.3, align=True)
+        split_save.label(text="Save Folder:")
+        split_save.prop(scene, "save_folder")
 
 class VIEW3D_PT_MANO_Model(bpy.types.Panel):
     """"""
@@ -1096,11 +1102,6 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         # layout.label(text="Sensor:")
         # box_sensor = layout.box()
         layout.operator(VIEW3D_OT_AddSensor.bl_idname)
-        layout_row = layout.row(align=True)
-        layout_split = layout_row.split(factor=0.7, align=True)
-        layout_split.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
-        layout_split.prop(scene, "override_compositing")
-        layout.prop(scene, "origin_ref")
         layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
         # box_sensor.separator()
         layout_rand_col = layout.column(align=True)
