@@ -22,6 +22,10 @@ import json
 from math import radians
 from mathutils import Vector, Quaternion, Matrix
 
+if "bpy" in locals():
+    import importlib
+    if "load_mano" in locals():
+        importlib.reload(load_mano)
 from .load_mano import load_mano_hand, load_regressor, MANO_BONE_NAMES, FINGERTIPS
 
 # TODO: delete me later ???
@@ -58,29 +62,6 @@ ensure_site_packages([
 
 # from manotorch.manolayer import ManoLayer, MANOOutput
 # from .VIRTOSHA.FlatBuffers import FrameBatch
-
-"""def add_constraints_to_armature(armature_name="Armature"): # TODO: maybe do this inside load
-    obj = bpy.data.objects.get(armature_name)
-    if not obj or obj.type != 'ARMATURE':
-        print(f"Armature '{armature_name}' not found.")
-        return
-
-    bpy.context.view_layer.objects.active = obj
-    current_mode = bpy.context.mode
-    bpy.ops.object.mode_set(mode='POSE')
-
-    for bone in obj.pose.bones:
-        if bone.name != "Wrist" and not re.match("^Metacarpus", bone.name):
-            # Prevent duplicate constraints
-            # if not any(c.type == 'LIMIT_ROTATION' for c in bone.constraints):
-            constraint = bone.constraints.new('LIMIT_ROTATION')
-            constraint.min_z = -1.4
-            constraint.max_z = 1.4
-            constraint.owner_space = 'LOCAL'
-            constraint.use_limit_z = True
-            constraint.use_transform_limit = True
-
-    bpy.ops.object.mode_set(mode=current_mode)"""
 
 def update_light_selection(self, context):
     """
@@ -204,12 +185,20 @@ bpy.types.Scene.override_compositing = bpy.props.BoolProperty(
 #    update=
 )
 
-bpy.types.Scene.random_poses_slider = bpy.props.IntProperty(
+"""bpy.types.Scene.random_poses_slider = bpy.props.IntProperty(
     name="Number of Poses",
     description="Number of random poses to generate and render",
     default=1,
     min=1,
     max=100
+)"""
+
+bpy.types.Scene.std_slider = bpy.props.FloatProperty(
+    name="Standard Deviation",
+    description="How likely it is that a random shape differs from the default one",
+    default=1.5,
+    min=0.0,
+    max=5.0
 )
 
 bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
@@ -684,8 +673,11 @@ class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
         context.view_layer.objects.active = sample
         sample_mesh = sample.data
         world_matrix = sample.matrix_world
+        sample_ind = [vertex.index for vertex in sample_mesh.vertices]
         for sensor in sensor_list:
-            vert_rand = sample_mesh.vertices[random.randint(0, len(sample_mesh.vertices)-1)]
+            rand_index = random.choice(sample_ind)
+            vert_rand = sample_mesh.vertices[rand_index]
+            sample_ind.remove(rand_index)
             sensor.location = world_matrix @ vert_rand.co
             orient = context.scene.sensor_orientation
             if orient == "NORMAL":
@@ -801,6 +793,7 @@ class VIEW3D_OT_ResetMeshShape(bpy.types.Operator):
         if mesh_left:
             for key in mesh_left.data.shape_keys.key_blocks:
                 key.value = 0.0
+        bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
         return{'FINISHED'}
 
 class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
@@ -825,13 +818,13 @@ class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
             if len(mesh_right.data.shape_keys.key_blocks) != len(mesh_left.data.shape_keys.key_blocks):
                 self.report({'ERROR'}, "Meshes have different number of shape keys")
             for key_right, key_left in zip(mesh_right.data.shape_keys.key_blocks, mesh_left.data.shape_keys.key_blocks):
-                key_right.value = key_left.value = random.gauss(0.0, 1.5) # TODO: std range slider
+                key_right.value = key_left.value = random.gauss(0.0, context.scene.std_slider)
         elif mesh_right:
             for key_right in mesh_right.data.shape_keys.key_blocks:
-                key_right.value = random.gauss(0.0, 1.5) # TODO: std range slider
+                key_right.value = random.gauss(0.0, context.scene.std_slider)
         elif mesh_left:
             for key_left in mesh_left.data.shape_keys.key_blocks:
-                key_left.value = random.gauss(0.0, 1.5) # TODO: std range slider
+                key_left.value = random.gauss(0.0, context.scene.std_slider)
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
         return{'FINISHED'}
 
@@ -931,7 +924,7 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_description = "Add a MANO hand model"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context): # TODO: create "Export armature" collection
+    def execute(self, context):
         obj = load_mano_hand(context.scene.hand_selection)
         obj.location = context.scene.cursor.location
         target_collection = bpy.data.collections.get("Export armature")
@@ -939,7 +932,7 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
             target_collection = bpy.data.collections.new("Export armature")
             context.scene.collection.children.link(target_collection)
         if obj.name not in target_collection.objects:
-            target_collection.objects.link(obj)
+            target_collection.objects.link(obj) # NOTE: this creates a duplicate
         return{'FINISHED'}
 
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
@@ -1035,7 +1028,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         
         layout.prop(scene, "hand_selection")
         layout.operator(VIEW3D_OT_AddMANOHand.bl_idname)
-        # TODO: create separate .blend with SMPL-x with my hands
+        # TODO: create separate .blend with SMPL-x with my hands ??
 
 class VIEW3D_PT_Pose(bpy.types.Panel):
     """"""
@@ -1081,7 +1074,9 @@ class VIEW3D_PT_Shape(bpy.types.Panel):
         layout_split = layout_row.split(factor=0.3, align=True)
         layout_split.label(text="Left hand:")
         layout_split.prop(scene, "deformable_mesh_left_ref")
-        layout_row = layout.row(align=True)
+        layout_col = layout.column(align=True)
+        layout_col.prop(scene, "std_slider")
+        layout_row = layout_col.row(align=True)
         layout_split = layout_row.split(factor=0.7, align=True)
         layout_split.operator(VIEW3D_OT_RandomMeshShape.bl_idname)
         layout_split.operator(VIEW3D_OT_ResetMeshShape.bl_idname)
