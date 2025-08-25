@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "IR Style Render",
+    "name": "Hands IR Render",
     "author": "Nikita Morev",
     "version": (0, 1),
     "blender": (2, 80, 0),
@@ -26,7 +26,7 @@ if "bpy" in locals():
     import importlib
     if "load_mano" in locals():
         importlib.reload(load_mano)
-from .load_mano import load_mano_hand, load_regressor, MANO_BONE_NAMES, FINGERTIPS
+from .load_mano import load_mano_hand, load_regressor, BONE_NAMES, FINGERTIPS
 
 # TODO: delete me later ???
 """def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
@@ -102,7 +102,7 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     bpy.ops.object.mode_set(mode='EDIT')
     edit_bones = armature_obj.data.edit_bones
 
-    for i, name in enumerate(MANO_BONE_NAMES):
+    for i, name in enumerate(BONE_NAMES):
         if name not in edit_bones:
             continue
         bone = edit_bones[name]
