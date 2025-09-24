@@ -2,27 +2,28 @@ import bpy
 import numpy as np
 # import os
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Matrix, Vector, Euler
+from math import radians
 
 # === CONFIG ===
 BONE_NAMES = [              # 16 MANO bones:
-    "Wrist",                # "wrist",
-    "IndexProximal",        # "index1",
-    "IndexIntermadiate",    # "index2",
-    "IndexDistal",          # "index3",
-    "MiddleProximal",       # "middle1",
-    "MiddleIntermadiate",   # "middle2",
-    "MiddleDistal",         # "middle3",
-    "LittleProximal",       # "pinky1",
-    "LittleIntermadiate",   # "pinky2",
-    "LittleDistal",         # "pinky3",
-    "RingProximal",         # "ring1",
-    "RingIntermadiate",     # "ring2",
-    "RingDistal",           # "ring3",
-    "ThumbMetacarpal",      # "thumb1",
-    "ThumbProximal",        # "thumb2",
-    "ThumbDistal",          # "thumb3",
-    # NOTE: Append new bones at the end
+    "Wrist",                # "wrist",       0
+    "IndexProximal",        # "index1",      1
+    "IndexIntermadiate",    # "index2",      2
+    "IndexDistal",          # "index3",      3
+    "MiddleProximal",       # "middle1",     4
+    "MiddleIntermadiate",   # "middle2",     5
+    "MiddleDistal",         # "middle3",     6
+    "LittleProximal",       # "pinky1",      7
+    "LittleIntermadiate",   # "pinky2",      8
+    "LittleDistal",         # "pinky3",      9
+    "RingProximal",         # "ring1",      10
+    "RingIntermadiate",     # "ring2",      11
+    "RingDistal",           # "ring3",      12
+    "ThumbMetacarpal",      # "thumb1",     13
+    "ThumbProximal",        # "thumb2",     14
+    "ThumbDistal",          # "thumb3",     15
+    # NOTE: New bones should be appended at the end of the list
 ]
 FINGERTIP_NAMES = [
     "ThumbTip",
@@ -31,12 +32,12 @@ FINGERTIP_NAMES = [
     "RingTip",
     "LittleTip",
 ]
-FINGERTIPS = {
-    FINGERTIP_NAMES[0] : 744,
-    FINGERTIP_NAMES[1] : 320,
-    FINGERTIP_NAMES[2] : 443,
-    FINGERTIP_NAMES[3] : 554,
-    FINGERTIP_NAMES[4] : 671,
+FINGERTIPS = { # Vertex index:
+    FINGERTIP_NAMES[0] : 745, # Thumb
+    FINGERTIP_NAMES[1] : 333, # Point
+    FINGERTIP_NAMES[2] : 444, # Middle
+    FINGERTIP_NAMES[3] : 555, # Ring
+    FINGERTIP_NAMES[4] : 672, # Pinky
 }
 BONE_PARENTS = {
     BONE_NAMES[0]       : None,
@@ -65,13 +66,15 @@ BONE_PARENTS = {
 def load_mano_model(hand):
     ROOT_DIR = Path(__file__).parent
     mano_path = ROOT_DIR / 'data' / f"MANO_{hand}.npz"
+    basis_path = ROOT_DIR / 'data' / f"basis_{hand}.txt"
+    anatomical_consistent_basis = np.loadtxt(basis_path, dtype=float)
     data = np.load(mano_path)
     v_template = data['v_template']   # [778, 3]
     shapedirs = data['shapedirs']     # [10, 778, 3]
     faces = data['f']                 # [1538, 3]
     joints = data['J']
     weights = data['weights']
-    return v_template, shapedirs, faces, joints, weights
+    return v_template, shapedirs, faces, joints, weights, anatomical_consistent_basis
 
 def load_regressor(hand):
     ROOT_DIR = Path(__file__).parent
@@ -103,7 +106,7 @@ def add_shape_keys(obj, shapedirs, base_vertices):
         for v_idx, delta in enumerate(shape):
             key.data[v_idx].co = base_vertices[v_idx] + delta
 
-def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents):
+def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents, basis):
     armature_data = bpy.data.armatures.new(f"MANO_{hand}_Hand")
     armature_obj = bpy.data.objects.new(f"MANO_{hand}_Hand", armature_data)
     bpy.context.collection.objects.link(armature_obj)
@@ -115,18 +118,25 @@ def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents)
     for i, name in enumerate(bone_names):
         bone = armature_data.edit_bones.new(name)
         head = joint_positions[i]
-        tail = head + Vector((0.0, 1.0, 0.0)) * 0.04
+        x_axis = Vector(basis[i, 6:9]) * -1
+        y_axis = Vector(basis[i, 3:6])
+        z_axis = Vector(basis[i, 0:3])
         bone.head = head
-        bone.tail = tail
+        rot = Matrix((x_axis, y_axis, z_axis)).transposed()
+        bone.matrix = Matrix.Translation(bone.head) @ rot.to_4x4()
+        bone.length = 0.04
         bones[name] = bone
 
     # add joints for fingertips
-    for name, index in FINGERTIPS.items():
+    for name, vert_index in FINGERTIPS.items():
         bone = armature_data.edit_bones.new(name)
-        head = mesh.data.vertices[index].co
-        tail = head + Vector((0.0, 1.0, 0.0)) * 0.04
+        head = mesh.data.vertices[vert_index].co
+
         bone.head = head
+        tail = head + Vector((0.0, 1.0, 0.0)) * 0.04
         bone.tail = tail
+        finger = name.rpartition('Tip')[0]
+        bone.align_orientation(bones[finger + "Distal"])
         bones[name] = bone
 
     # Set up parent relationships
@@ -145,50 +155,69 @@ def assign_skinning_weights(obj, weights, bone_names):
             if w > 0:
                 vg.add([v_idx], w, 'REPLACE')
 
-def add_constraints_to_armature(armature):
+def add_constraints_to_armature(armature, hand):
     bpy.context.view_layer.objects.active = armature
     current_mode = bpy.context.mode
     bpy.ops.object.mode_set(mode='POSE')
     
+    rot = True if hand == "LEFT" else False
     root = armature.pose.bones.get(BONE_NAMES[0])
-
     for bone in root.children:
         if bone.name == BONE_NAMES[13]:
-            pass
-            # constraint = bone.constraints.new('LIMIT_ROTATION')
-            # constraint.min_x = -0.35
-            # constraint.max_x = 2.10
-            # constraint.use_limit_x = True
-            # constraint.min_y = -0.60
-            # constraint.max_y = 0.56
-            # constraint.use_limit_y = True
-            # constraint.min_z = -0.3
-            # constraint.max_z = 0.43
-            # constraint.use_limit_z = True
-            # constraint.owner_space = 'LOCAL'
-            # constraint.use_transform_limit = True
+            constraint = bone.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = -0.35
+            constraint.max_x = 2.10
+            constraint.use_limit_x = True
+            constraint.min_y = -0.60
+            constraint.max_y = 0.56
+            constraint.use_limit_y = True
+            constraint.min_z = -0.3
+            constraint.max_z = 0.43
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
 
-            # bone_1 = bone.children[0]
-            # constraint = bone_1.constraints.new('LIMIT_ROTATION')
-            # constraint.use_limit_x = True
-            # constraint.use_limit_y = True
-            # constraint.min_z = -0.57
-            # constraint.max_z = 1.88
-            # constraint.use_limit_z = True
-            # constraint.owner_space = 'LOCAL'
-            # constraint.use_transform_limit = True
+            bone_1 = bone.children[0]
+            constraint = bone_1.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+
+            bone_2 = bone_1.children[0]
+            constraint = bone_2.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.min_y = -0.9  # third layer
+            constraint.max_y = 0.25   # third layer
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+
+            bone_3 = bone_2.children[0]
+            constraint = bone_3.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
 
         else:
             constraint = bone.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
             if bone.name == BONE_NAMES[7]: # if pinky
-                constraint.max_y = 0.77
+                constraint.min_y = -0.43 if rot else -0.35
+                constraint.max_y = 0.35 if rot else 0.43
             elif bone.name == BONE_NAMES[10]: # if ring
-                constraint.max_y = 0.38
+                constraint.min_y = 0.0 if rot else 0.2
+                constraint.max_y = 0.2 if rot else 0.0
             elif bone.name == BONE_NAMES[4]: # if middle
-                constraint.max_y = 0.2
+                constraint.min_y = -0.26 if rot else 0.06
+                constraint.max_y = 0.06 if rot else -0.26
             elif bone.name == BONE_NAMES[1]: # if index
-                constraint.min_y = -0.14
+                constraint.min_y = -0.14 if rot else 0.23
+                constraint.max_y = 0.23 if rot else -0.14
             constraint.use_limit_y = True
             constraint.min_z = -0.57  # first layer
             constraint.max_z = 1.74   # first layer
@@ -234,7 +263,7 @@ def load_mano_hand(hand: str):
         'LEFT' or 'RIGHT' hand
     """
 
-    v_template, shapedirs, faces, joints, weights = load_mano_model(hand)
+    v_template, shapedirs, faces, joints, weights, basis = load_mano_model(hand)
 
     # === Create base mesh ===
     mesh = create_mano_mesh(f"MANO_{hand}_Hand_mesh", v_template, faces)
@@ -243,13 +272,13 @@ def load_mano_hand(hand: str):
     add_shape_keys(mesh, shapedirs, v_template)
     
     # === Add armature ===
-    arm = create_joint_armature(mesh, hand, joints, BONE_NAMES, BONE_PARENTS)
+    arm = create_joint_armature(mesh, hand, joints, BONE_NAMES, BONE_PARENTS, basis)
     mesh.parent = arm
     
     arm_mod = mesh.modifiers.new(name="ArmatureDeform", type='ARMATURE')
     arm_mod.object = arm
     assign_skinning_weights(mesh, weights, BONE_NAMES)
 
-    # add_constraints_to_armature(arm)
+    # add_constraints_to_armature(arm, hand)
 
     return arm
