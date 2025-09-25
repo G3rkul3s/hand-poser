@@ -118,7 +118,7 @@ def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents,
     for i, name in enumerate(bone_names):
         bone = armature_data.edit_bones.new(name)
         head = joint_positions[i]
-        x_axis = Vector(basis[i, 6:9]) * -1
+        x_axis = Vector(basis[i, 6:9]) * -1 # makes the system right handed
         y_axis = Vector(basis[i, 3:6])
         z_axis = Vector(basis[i, 0:3])
         bone.head = head
@@ -160,41 +160,47 @@ def add_constraints_to_armature(armature, hand):
     current_mode = bpy.context.mode
     bpy.ops.object.mode_set(mode='POSE')
     
-    rot = True if hand == "LEFT" else False
     root = armature.pose.bones.get(BONE_NAMES[0])
+    constraint = root.constraints.new('LIMIT_ROTATION')
+    constraint.use_limit_x = False
+    constraint.use_limit_y = False
+    constraint.use_limit_z = False
+    constraint.owner_space = 'LOCAL'
+    constraint.use_transform_limit = True
     for bone in root.children:
-        if bone.name == BONE_NAMES[13]:
+        if bone.name == BONE_NAMES[13]:     # if thumb
+            # Proximal
             constraint = bone.constraints.new('LIMIT_ROTATION')
-            constraint.min_x = -0.35
-            constraint.max_x = 2.10
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(33.0)
             constraint.use_limit_x = True
-            constraint.min_y = -0.60
-            constraint.max_y = 0.56
+            constraint.min_y = radians(-25.0)
+            constraint.max_y = radians(25.0)
             constraint.use_limit_y = True
-            constraint.min_z = -0.3
-            constraint.max_z = 0.43
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+            # Intermadiate
             bone_1 = bone.children[0]
             constraint = bone_1.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = radians(-80.0)
+            constraint.max_x = radians(0.0)
             constraint.use_limit_x = True
             constraint.use_limit_y = True
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+            # Distal
             bone_2 = bone_1.children[0]
             constraint = bone_2.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(20.0)
             constraint.use_limit_x = True
             constraint.use_limit_y = True
-            constraint.min_y = -0.9  # third layer
-            constraint.max_y = 0.25   # third layer
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+            # Tip
             bone_3 = bone_2.children[0]
             constraint = bone_3.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
@@ -204,47 +210,48 @@ def add_constraints_to_armature(armature, hand):
             constraint.use_transform_limit = True
 
         else:
+            # Proximal
             constraint = bone.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(15.0)
             constraint.use_limit_x = True
-            if bone.name == BONE_NAMES[7]: # if pinky
-                constraint.min_y = -0.43 if rot else -0.35
-                constraint.max_y = 0.35 if rot else 0.43
-            elif bone.name == BONE_NAMES[10]: # if ring
-                constraint.min_y = 0.0 if rot else 0.2
-                constraint.max_y = 0.2 if rot else 0.0
-            elif bone.name == BONE_NAMES[4]: # if middle
-                constraint.min_y = -0.26 if rot else 0.06
-                constraint.max_y = 0.06 if rot else -0.26
-            elif bone.name == BONE_NAMES[1]: # if index
-                constraint.min_y = -0.14 if rot else 0.23
-                constraint.max_y = 0.23 if rot else -0.14
+            if bone.name == BONE_NAMES[7]:      # if pinky
+                constraint.min_y = 0.0
+                constraint.max_y = 0.0
+            elif bone.name == BONE_NAMES[10]:   # if ring
+                constraint.min_y = radians(-5.0)
+                constraint.max_y = radians(15.0)
+            elif bone.name == BONE_NAMES[4]:    # if middle
+                constraint.min_y = radians(-5.0)
+                constraint.max_y = radians(15.0)
+            elif bone.name == BONE_NAMES[1]:    # if index
+                constraint.min_y = radians(-20.0)
+                constraint.max_y = radians(15.0)
             constraint.use_limit_y = True
-            constraint.min_z = -0.57  # first layer
-            constraint.max_z = 1.74   # first layer
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+            # Intermadiate
             bone_1 = bone.children[0]
             constraint = bone_1.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
+            constraint.min_x = radians(-100.0)
+            constraint.max_x = radians(5.0)
             constraint.use_limit_y = True
-            constraint.min_z = -0.57  # second layer
-            constraint.max_z = 1.88   # second layer
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+            # Distal
             bone_2 = bone_1.children[0]
             constraint = bone_2.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(6.0)
             constraint.use_limit_y = True
-            constraint.min_z = -0.17  # third layer
-            constraint.max_z = 1.57   # third layer
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+            # Tip
             bone_3 = bone_2.children[0]
             constraint = bone_3.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
@@ -279,6 +286,6 @@ def load_mano_hand(hand: str):
     arm_mod.object = arm
     assign_skinning_weights(mesh, weights, BONE_NAMES)
 
-    # add_constraints_to_armature(arm, hand)
+    add_constraints_to_armature(arm, hand)
 
     return arm

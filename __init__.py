@@ -426,6 +426,8 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
 
     def execute(self, context):
         armature = context.scene.armature_ref
+        curr_hide = armature.hide_get()
+        armature.hide_set(False)
         active_curr = context.view_layer.objects.active
         context.view_layer.objects.active = armature
         current_mode = context.mode
@@ -458,6 +460,7 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
                 random.uniform(min_z, max_z))
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
+        armature.hide_set(curr_hide)
         return {'FINISHED'}
     
 class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
@@ -477,6 +480,8 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
         armature = context.scene.armature_ref
         bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         active_curr = context.view_layer.objects.active
+        curr_hide = armature.hide_get()
+        armature.hide_set(False)
         context.view_layer.objects.active = armature
         current_mode = bpy.context.mode
         bpy.ops.object.mode_set(mode='POSE')
@@ -484,9 +489,11 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
             if bone_collection and bone.name not in bone_collection.bones:
                 continue
             bone.keyframe_insert(data_path="location")
+            bone.rotation_mode = 'QUATERNION'
             bone.keyframe_insert(data_path="rotation_quaternion")
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
+        armature.hide_set(curr_hide)
         return {'FINISHED'}
 
 class VIEW3D_OT_ResetPose(bpy.types.Operator):
@@ -506,6 +513,8 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
         armature = context.scene.armature_ref
         bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         active_curr = context.view_layer.objects.active
+        curr_hide = armature.hide_get()
+        armature.hide_set(False)
         context.view_layer.objects.active = armature
         current_mode = context.mode
         bpy.ops.object.mode_set(mode='POSE')
@@ -516,6 +525,7 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
             bone.rotation_euler = (0,0,0)
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
+        armature.hide_set(curr_hide)
         return {'FINISHED'}
 
 class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
