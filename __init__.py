@@ -22,11 +22,12 @@ import json
 from math import radians
 from mathutils import Vector, Quaternion, Matrix
 
-if "bpy" in locals():
-    import importlib
-    if "load_mano" in locals():
-        importlib.reload(load_mano)
-from .load_mano import load_mano_hand, load_regressor, BONE_NAMES, FINGERTIPS
+from importlib import reload
+from . import load_mano as lm
+
+def reload_modules():
+    # print("reloading")
+    reload(lm)
 
 # TODO: delete me later ???
 """def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
@@ -102,7 +103,7 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     bpy.ops.object.mode_set(mode='EDIT')
     edit_bones = armature_obj.data.edit_bones
 
-    for i, name in enumerate(BONE_NAMES):
+    for i, name in enumerate(lm.BONE_NAMES):
         if name not in edit_bones:
             continue
         bone = edit_bones[name]
@@ -111,7 +112,7 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
         bone.head = new_head
         bone.tail = new_tail
     
-    for name, index in FINGERTIPS.items():
+    for name, index in lm.FINGERTIPS.items():
         bone = edit_bones[name]
         new_head = vert_shaped[index]
         new_tail = bone.tail + Vector(new_head - bone.head)
@@ -903,7 +904,7 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                     mod.show_viewport = mod_show_list[i]
             # Cash the regressor and the template
             if self.J_regressor_right is None:
-                self.J_regressor_right = load_regressor('RIGHT')
+                self.J_regressor_right = lm.load_regressor('RIGHT')
             update_joint_positions(mesh_right.parent, self.J_regressor_right, vertices, context)
         
         mesh_left = context.scene.deformable_mesh_left_ref
@@ -924,7 +925,7 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                     mod.show_viewport = mod_show_list[i]
             # Cash the regressor and the template
             if self.J_regressor_left is None:
-                self.J_regressor_left = load_regressor('LEFT')
+                self.J_regressor_left = lm.load_regressor('LEFT')
             update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
         return{'FINISHED'}
     
@@ -935,7 +936,7 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        obj = load_mano_hand(context.scene.hand_selection)
+        obj = lm.load_mano_hand(context.scene.hand_selection)
         obj.location = context.scene.cursor.location
         target_collection = bpy.data.collections.get("Export armature")
         if not target_collection:
@@ -1158,6 +1159,7 @@ classes = (
 )
 
 def register():
+    reload_modules()
     for cls in classes:
         bpy.utils.register_class(cls)
     print("IR Style Render Registered (N-Panel)")

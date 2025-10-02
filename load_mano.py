@@ -155,7 +155,7 @@ def assign_skinning_weights(obj, weights, bone_names):
             if w > 0:
                 vg.add([v_idx], w, 'REPLACE')
 
-def add_constraints_to_armature(armature, hand):
+def add_constraints_to_armature(armature):
     bpy.context.view_layer.objects.active = armature
     current_mode = bpy.context.mode
     bpy.ops.object.mode_set(mode='POSE')
@@ -281,11 +281,31 @@ def load_mano_hand(hand: str):
     # === Add armature ===
     arm = create_joint_armature(mesh, hand, joints, BONE_NAMES, BONE_PARENTS, basis)
     mesh.parent = arm
-    
+   
+    # Set the origin of the armature to wrist bone
+    # NOTE: this breaks the joint position update
+    '''
+    current_mode = bpy.context.mode
+    bpy.ops.object.mode_set(mode='EDIT')
+    root = arm.data.edit_bones.get(BONE_NAMES[0])
+    bone_loc = root.head
+    bpy.ops.object.mode_set(mode='OBJECT')
+    cursor_loc = bpy.context.scene.cursor.location.copy()
+    bpy.context.scene.cursor.location = bone_loc
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+    bpy.context.scene.cursor.location = cursor_loc
+    bpy.ops.view3d.snap_selected_to_cursor()
+    arm.select_set(False)
+    bpy.ops.object.mode_set(mode=current_mode)
+    '''
+
     arm_mod = mesh.modifiers.new(name="ArmatureDeform", type='ARMATURE')
     arm_mod.object = arm
     assign_skinning_weights(mesh, weights, BONE_NAMES)
 
-    add_constraints_to_armature(arm, hand)
+    add_constraints_to_armature(arm)
+
 
     return arm
