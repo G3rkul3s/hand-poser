@@ -15,20 +15,26 @@ import random
 import numpy as np
 import math
 import json
-# import os
 # import re
+import os
 # import sys
 # import typing
 from math import radians
 from mathutils import Vector, Quaternion, Matrix
 
+from pathlib import Path
+ROOT_DIR = Path(__file__).parent
+POSE_PATH = ROOT_DIR / "saved_poses.json"
+
 from importlib import reload
 from . import load_mano as lm
+
 
 def reload_modules():
     # print("reloading")
     reload(lm)
 
+# TODO: delete all print statements
 # TODO: delete me later ???
 """def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
     if not packages:
@@ -122,6 +128,22 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     bpy.ops.object.mode_set(mode=current_mode)
     context.view_layer.objects.active = active_curr
 
+def load_poses_from_file(self, context):
+    items = []
+    if os.path.exists(POSE_PATH):
+        with open(POSE_PATH, 'r') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                return {'CANCELLED'}
+            for pose in data:
+                pose_name = pose["name"]
+                items.append((pose_name, pose_name, ""))
+    return items
+
+def update_pose_selection(self, context):
+    return
+
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
     description="Display render type in viewport",
@@ -165,6 +187,18 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
         # ('FBS', ".fbs", "Export to .fbs")
     ],
     default='JSON',
+)
+
+bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
+    name="",
+    description="Choose a predefined pose", # TODO: decide if .\nIt is armature name sensetive
+    items=load_poses_from_file,
+    update=update_pose_selection,
+)
+
+bpy.types.Scene.pose_name = bpy.props.StringProperty(
+    name="",
+    description="Give a name to the pose",
 )
 
 bpy.types.Scene.origin_ref = bpy.props.PointerProperty(
@@ -415,7 +449,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
     """"""
     bl_idname = "view3d.generate_pose"
-    bl_label = "Random Pose"
+    bl_label = "Generate Random Pose"
     bl_description="Generate a rondom pose"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -463,7 +497,134 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
         return {'FINISHED'}
-    
+
+class VIEW3D_OT_SavePose(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.save_pose"
+    bl_label = "Save Pose"
+    bl_description="Save the armature's current pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.armature_ref) and (context.scene.pose_name)
+        except: return False
+
+    def get_bone_data(self, bone):
+        bone_info = {}
+        bone_info["name"] = bone.name
+        bone.rotation_mode = 'QUATERNION'
+        bone_info["rotation_quaternion"] = list(bone.rotation_quaternion)
+        return bone_info
+
+    def get_armature_data(self, context):
+        active_curr = context.view_layer.objects.active
+        current_mode = context.mode
+        armature = context.scene.armature_ref
+        context.view_layer.objects.active = armature
+        bpy.ops.object.mode_set(mode='POSE')
+        armature_info = {}
+        armature_info["name"] = context.scene.pose_name
+        armature_info["arm_name"] = armature.name
+        armature_info["joints"] = []
+        for bone in armature.pose.bones:
+            bone_info = self.get_bone_data(bone)
+            armature_info["joints"].append(bone_info)
+        bpy.ops.object.mode_set(mode=current_mode)
+        context.view_layer.objects.active = active_curr
+        return armature_info
+
+    def execute(self, context):
+        armature_info = self.get_armature_data(context)
+        data = []
+        if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        if any(entry.get("name") == armature_info.get("name") for entry in data):
+            self.report({'ERROR'}, "This name already exists")
+            return {'CANCELLED'}
+        data.append(armature_info)
+        with open(POSE_PATH, 'w') as f:
+            json.dump(data, f, indent=4)
+        context.scene.pose_name = ""
+        return {'FINISHED'}
+
+class VIEW3D_OT_ApplyPose(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.apply_pose"
+    bl_label = "Aplly Pose"
+    bl_description="Apply predefined pose to the armature"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.armature_ref) and (context.scene.pose_selection)
+        except: return False
+
+    def execute(self, context):
+        data = []
+        if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        armature = context.scene.armature_ref
+        pose = context.scene.pose_selection
+        # Search for the pose
+        for entry in data:
+            if entry.get("name") == pose:
+                active_curr = context.view_layer.objects.active
+                current_mode = context.mode
+                context.view_layer.objects.active = armature
+                bpy.ops.object.mode_set(mode='POSE')
+                # Search for the bone
+                for bone in armature.pose.bones:
+                    print("---")
+                    for joint in entry["joints"]:
+                        if joint.get("name") == bone.name:
+                            # Apply bone rotation
+                            bone.rotation_mode = 'QUATERNION'
+                            bone.rotation_quaternion = joint["rotation_quaternion"]
+                            break
+                bpy.ops.object.mode_set(mode=current_mode)
+                context.view_layer.objects.active = active_curr
+                break
+        return {'FINISHED'}
+
+class VIEW3D_OT_DeletePose(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.delete_pose"
+    bl_label = "Delete"
+    bl_description="Delete currently selected pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.pose_selection)
+        except: return False
+
+    def execute(self, context):
+        data = []
+        if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        # Exclude the pose
+        new_data = [entry for entry in data if entry.get("name") != context.scene.pose_selection]
+        # Save updated list back
+        with open(POSE_PATH, 'w') as f:
+            json.dump(new_data, f, indent=4)
+        return {'FINISHED'}
+
 class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
     """"""
     bl_idname = "view3d.armature_keyframe"
@@ -555,6 +716,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         bone_info = {}
         bone_info["name"] = bone.name
         bone_info["location"] = list(head)
+        bone.rotation_mode = 'QUATERNION'
         bone_info["rotation_quaternion"] = list(bone.rotation_quaternion)
         return bone_info
 
@@ -593,7 +755,6 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             matrix_world = (trans @ rot).inverted()
         else:
             matrix_world = Matrix.Translation(Vector((0,0,0)))
-        print(matrix_world)
         # Iterate over all frames
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
@@ -1054,15 +1215,31 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         scene = context.scene
         # layout.label(text="Pose:")
         # box_action = layout.box()
-        layout.prop(scene, "armature_ref")
-        layout_row = layout.row(align=True)
-        layout_split = layout_row.split(factor=0.4, align=True)
-        layout_split.label(text="Bone Collection:")
-        layout_split.prop(scene, "selected_bone_collection")
-        layout_row = layout.row(align=True)
-        layout_split = layout_row.split(factor=0.7, align=True)
-        layout_split.operator(VIEW3D_OT_GeneratePose.bl_idname)
-        layout_split.operator(VIEW3D_OT_ResetPose.bl_idname)
+        layout_arm_col = layout.column(align=True)
+        layout_arm_col.prop(scene, "armature_ref")
+        layout_row_bone = layout_arm_col.row(align=True)
+        layout_bone = layout_row_bone.split(factor=0.4, align=True)
+        layout_bone.label(text="Bone Collection:")
+        layout_bone.prop(scene, "selected_bone_collection")
+        layout_pose_col = layout.column(align=True)
+        layout_pose_row = layout_pose_col.row(align=True)
+        layout_pose = layout_pose_row.split(factor=0.4, align=True)
+        layout_pose.label(text="Pose:")
+        layout_pose.prop(scene, "pose_selection")
+        layout_apply_pose_row = layout_pose_col.row(align=True)
+        layout_apply_pose = layout_apply_pose_row.split(factor=0.7, align=True)
+        layout_apply_pose.operator(VIEW3D_OT_ApplyPose.bl_idname)
+        layout_apply_pose.operator(VIEW3D_OT_DeletePose.bl_idname)
+        layout_save_col = layout.column(align=True)
+        layout_pose_name_row = layout_save_col.row(align=True)
+        layout_pose_name = layout_pose_name_row.split(factor=0.4, align=True)
+        layout_pose_name.label(text="Pose Name:")
+        layout_pose_name.prop(scene, "pose_name")
+        layout_save_col.operator(VIEW3D_OT_SavePose.bl_idname)
+        layout_rand_row = layout.row(align=True)
+        layout_rand = layout_rand_row.split(factor=0.7, align=True)
+        layout_rand.operator(VIEW3D_OT_GeneratePose.bl_idname)
+        layout_rand.operator(VIEW3D_OT_ResetPose.bl_idname)
         layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
 
 class VIEW3D_PT_Shape(bpy.types.Panel):
@@ -1140,6 +1317,9 @@ classes = (
     VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_ResetPose,
+    VIEW3D_OT_SavePose,
+    VIEW3D_OT_ApplyPose,
+    VIEW3D_OT_DeletePose,
     VIEW3D_OT_ArmatureKeyframe,
     VIEW3D_OT_RandomMeshShape,
     VIEW3D_OT_ResetMeshShape,
