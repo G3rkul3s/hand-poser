@@ -70,18 +70,23 @@ ensure_site_packages([
 # from manotorch.manolayer import ManoLayer, MANOOutput
 # from .VIRTOSHA.FlatBuffers import FrameBatch
 
+def draw_compositing_error(self, context):
+    self.layout.label(text="Compositing is not configured")
+
+def draw_sensor_collection_error(self, context):
+    self.layout.label(text='"Sensors" collection not found')
+
 def update_light_selection(self, context):
     """
     This function is called whenever 'light_selection' changes.
     """
     sensor_collection = bpy.data.collections.get('Sensors')
     if not sensor_collection:
-        print("Sensors collection not found")
+        bpy.context.window_manager.popup_menu(draw_sensor_collection_error, title="Warning", icon='ERROR')
         return
     sensor_objects = set(sensor_collection.objects)
     selection = self.light_selection
-    
-    nl_render = True if selection == 'NL' else False
+    nl_render = True if selection == 'RGB' else False
     for obj in sensor_objects:
         if obj.type == 'LIGHT':
             obj.hide_render = nl_render
@@ -92,10 +97,17 @@ def update_light_selection(self, context):
             obj.hide_render = not nl_render
             # if self.viewport_checkbox:
             obj.hide_viewport = not nl_render
-    
-    hue_correct = context.scene.node_tree.nodes.get("BlackAndWhiteFilter")
-    if hue_correct:
+    tree = context.scene.node_tree
+    hue_correct = tree.nodes.get("BlackAndWhiteFilter")
+    mix_rgb = tree.nodes.get("DepthImage")
+    composite = tree.nodes.get("Composite")
+    if selection == 'DEPTH' and composite and mix_rgb:
+        tree.links.new(mix_rgb.outputs['Image'], composite.inputs['Image'])
+    elif hue_correct and composite:
         hue_correct.mute = nl_render
+        tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
+    else:
+        bpy.context.window_manager.popup_menu(draw_compositing_error, title="Warning", icon='ERROR')
 
 def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     """
@@ -141,9 +153,6 @@ def load_poses_from_file(self, context):
                 items.append((pose_name, pose_name, ""))
     return items
 
-def update_pose_selection(self, context):
-    return
-
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
     description="Display render type in viewport",
@@ -160,18 +169,19 @@ def update_pose_selection(self, context):
 
 bpy.types.Scene.light_selection = bpy.props.EnumProperty(
     name="",
-    description="Choose a lighting for the scene",
+    description="Choose render type",
     items=[
-        ('NL', "Natural", "Use natural lighting"),
-        ('IR', "Infrared", "Use infrared lighting")
+        ('RGB', "RGB", "Render with scene lighting"),
+        ('IR', "Infrared", "Render with infrared sensor lighting"),
+        ('DEPTH', "Depth", "Render depth pass"),
     ],
-    default='NL',
+    default='RGB',
     update=update_light_selection
 )
 
 bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
     name="Hand",
-    description="Choose a MANO hand type",
+    description="Choose MANO hand type",
     items=[
         ('LEFT', "Left", "Left hand"),
         ('RIGHT', "Right", "Right hand")
@@ -181,7 +191,7 @@ bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
     name="",
-    description="Choose a file extension",
+    description="Choose file extension",
     items=[
         ('JSON', ".json", "Export to .json"),
         # ('FBS', ".fbs", "Export to .fbs")
@@ -191,9 +201,8 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
     name="",
-    description="Choose a predefined pose", # TODO: decide if .\nIt is armature name sensetive
+    description="Choose predefined pose", # TODO: decide if .\nIt is armature name sensetive
     items=load_poses_from_file,
-    update=update_pose_selection,
 )
 
 bpy.types.Scene.pose_name = bpy.props.StringProperty(
@@ -256,6 +265,15 @@ bpy.types.Scene.deformable_mesh_left_ref = bpy.props.PointerProperty(
     poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
 )
 
+bpy.types.Scene.sensor_type = bpy.props.EnumProperty(
+    name="",
+    description="Choose sensor type",
+    items=[
+        ('LEAPSTEREO', "Stereo IR 170", "Ultraleap stereo camera"),
+    ],
+    default='LEAPSTEREO',
+)
+
 bpy.types.Scene.random_positions_ref = bpy.props.PointerProperty(
     name="",
     description = "A mesh to randomly sample it's vertecies for the sensor placement",
@@ -278,7 +296,7 @@ bpy.types.Scene.selected_bone_collection = bpy.props.EnumProperty(
 
 bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
     name="",
-    description="Choose a sensor orientation (where it points)",
+    description="Choose sensor orientation (where it points)",
     items=[
         ('KEEP', "Keep", "Keep the original orientation"),
         ('NORMAL', "Normals", "Pointing along the normals of the sample mesh"),
@@ -308,7 +326,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         sensor_collection = bpy.data.collections.get('Sensors')
         if not sensor_collection:
             self.report({'ERROR'}, "Sensors collection not found")
-            return
+            return {'CANCELLED'}
         # Check for save folder
         folder = context.scene.save_folder
         if not folder:
@@ -435,7 +453,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         target_collection.objects.link(spot_obj_right)
 
         # Set visibility
-        nl_render = True if context.scene.light_selection == 'NL' else False
+        nl_render = True if context.scene.light_selection == 'RGB' else False
         spot_obj_left.hide_render = nl_render
         spot_obj_right.hide_render = nl_render
         # if context.scene.viewport_checkbox:
@@ -1112,40 +1130,62 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
     bl_label = "Configure Compositing"
     bl_description = "Configure the compositing node tree to simulate the infrared sensor"
     bl_options = {'REGISTER', 'UNDO'}
-
+    
     def execute(self, context):
         context.scene.use_nodes = True
         tree = context.scene.node_tree
         if context.scene.override_compositing:
             tree.nodes.clear()
-        render_layers = context.scene.node_tree.nodes.get("Render Layers")
+        render_layers = tree.nodes.get("Render Layers")
         if not render_layers:
             render_layers = tree.nodes.new(type='CompositorNodeRLayers')
-        composite = context.scene.node_tree.nodes.get("Composite")
+        composite = tree.nodes.get("Composite")
         if not composite:
             composite = tree.nodes.new(type='CompositorNodeComposite')
-        lens_distortion = tree.nodes.new(type='CompositorNodeLensdist')
+        # Add compositing nodes
+        lens_distortion_image = tree.nodes.new(type='CompositorNodeLensdist')
+        lens_distortion_alpha = tree.nodes.new(type='CompositorNodeLensdist')
+        lens_distortion_mist = tree.nodes.new(type='CompositorNodeLensdist')
+        invert_depth = tree.nodes.new(type='CompositorNodeInvert')
+        invert_depth.invert_rgb = True
+        mix_rgb = tree.nodes.new(type='CompositorNodeMixRGB')
+        mix_rgb.blend_type = 'MULTIPLY'
+        mix_rgb.name = "DepthImage"
         hue_correct = tree.nodes.new(type='CompositorNodeHueCorrect')
         hue_correct.name = "BlackAndWhiteFilter"
         render_layers.location = (0, 0)
-        lens_distortion.location = (300, 0)
-        hue_correct.location = (500, 0)
-        composite.location = (900, 0)
+        lens_distortion_image.location = (300, 350)
+        lens_distortion_alpha.location = (300, 0)
+        lens_distortion_mist.location = (300, -250)
+        hue_correct.location = (500, 350)
+        invert_depth.location = (500, -250)
+        mix_rgb.location = (700, 0)
+        composite.location = (1000, 0)
         # Set the distortion to 1.0
-        lens_distortion.inputs["Distortion"].default_value = 1.0
+        lens_distortion_image.inputs["Distortion"].default_value = 1.0
+        lens_distortion_alpha.inputs["Distortion"].default_value = 1.0
+        lens_distortion_mist.inputs["Distortion"].default_value = 1.0
         # Set the saturation curve to a flat line at 0.0
         sat_curve = hue_correct.mapping.curves[1]  # 0=H, 1=S, 2=V
-        # Remove existing points
+        # Remove existing points on the curve
         for i in reversed(range(2, len(sat_curve.points))):
             sat_curve.points.remove(sat_curve.points[i])
         sat_curve.points[0].location = (0.0, 0.0)
         sat_curve.points[1].location = (1.0, 0.0)
         # Link the nodes together
-        tree.links.new(render_layers.outputs['Image'], lens_distortion.inputs['Image'])
-        tree.links.new(lens_distortion.outputs['Image'], hue_correct.inputs['Image'])
-        tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
-        if context.scene.light_selection == 'NL':
-            hue_correct.mute = True
+        tree.links.new(render_layers.outputs['Image'], lens_distortion_image.inputs['Image'])
+        tree.links.new(lens_distortion_image.outputs['Image'], hue_correct.inputs['Image'])
+        tree.links.new(render_layers.outputs['Alpha'], lens_distortion_alpha.inputs['Image'])
+        tree.links.new(render_layers.outputs['Mist'], lens_distortion_mist.inputs['Image'])
+        tree.links.new(lens_distortion_mist.outputs['Image'], invert_depth.inputs['Color'])
+        tree.links.new(lens_distortion_alpha.outputs['Image'], mix_rgb.inputs[1])
+        tree.links.new(invert_depth.outputs['Color'], mix_rgb.inputs[2])
+        if context.scene.light_selection == 'DEPTH':
+            tree.links.new(mix_rgb.outputs['Image'], composite.inputs['Image'])
+        else:
+            tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
+            if context.scene.light_selection == 'RGB':
+                hue_correct.mute = True
         return{'FINISHED'}
 
 class VIEW3D_PT_Export(bpy.types.Panel):
@@ -1162,7 +1202,7 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         
         layout_row = layout.row(align=True)
         split_light = layout_row.split(factor=0.3, align=True)
-        split_light.label(text="Lighting:")
+        split_light.label(text="Image:")
         split_light.prop(scene, "light_selection")
         layout_row = layout.row(align=True)
         split_origin = layout_row.split(factor=0.3, align=True)
@@ -1284,7 +1324,12 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         scene = context.scene
         # layout.label(text="Sensor:")
         # box_sensor = layout.box()
-        layout.operator(VIEW3D_OT_AddSensor.bl_idname)
+        layout_add_col = layout.column(align=True)
+        layout_add_row = layout_add_col.row(align=True)
+        layout_add = layout_add_row.split(factor=0.35, align=True)
+        layout_add.label(text="Type:")
+        layout_add.prop(scene, "sensor_type")
+        layout_add_col.operator(VIEW3D_OT_AddSensor.bl_idname)
         layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
         # box_sensor.separator()
         layout_rand_col = layout.column(align=True)
@@ -1307,7 +1352,7 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_rand_angle_row.prop(scene, "angle_restriction")
         layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
         layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
-        # TODO: add button to consider Natural IR sources
+        # TODO: add button to consider IR from "natural" sources (sun)
         # TODO: metall frame + sensor as a separate .blend file ???
 
 classes = (
