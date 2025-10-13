@@ -70,10 +70,10 @@ ensure_site_packages([
 # from manotorch.manolayer import ManoLayer, MANOOutput
 # from .VIRTOSHA.FlatBuffers import FrameBatch
 
-def draw_compositing_error(self, context):
+def compositing_error(self, context):
     self.layout.label(text="Compositing is not configured")
 
-def draw_sensor_collection_error(self, context):
+def sensor_collection_error(self, context):
     self.layout.label(text='"Sensors" collection not found')
 
 def update_light_selection(self, context):
@@ -82,7 +82,7 @@ def update_light_selection(self, context):
     """
     sensor_collection = bpy.data.collections.get('Sensors')
     if not sensor_collection:
-        bpy.context.window_manager.popup_menu(draw_sensor_collection_error, title="Warning", icon='ERROR')
+        bpy.context.window_manager.popup_menu(sensor_collection_error, title="Warning", icon='ERROR')
         return
     sensor_objects = set(sensor_collection.objects)
     selection = self.light_selection
@@ -102,12 +102,14 @@ def update_light_selection(self, context):
     mix_rgb = tree.nodes.get("DepthImage")
     composite = tree.nodes.get("Composite")
     if selection == 'DEPTH' and composite and mix_rgb:
+        context.view_layer.use_pass_mist = True
         tree.links.new(mix_rgb.outputs['Image'], composite.inputs['Image'])
     elif hue_correct and composite:
+        context.view_layer.use_pass_mist = False
         hue_correct.mute = nl_render
         tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
     else:
-        bpy.context.window_manager.popup_menu(draw_compositing_error, title="Warning", icon='ERROR')
+        bpy.context.window_manager.popup_menu(compositing_error, title="Warning", icon='ERROR')
 
 def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     """
@@ -246,21 +248,21 @@ bpy.types.Scene.std_slider = bpy.props.FloatProperty(
 )
 
 bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
-    name="Armature",
+    name="",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'ARMATURE',
 )
 
 bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
     name="",
-    description = "Right hand mesh with defined shape keys (the same keys as for the left hand)",
+    description = "Right hand mesh with 'Shape_' keys",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
 )
 
 bpy.types.Scene.deformable_mesh_left_ref = bpy.props.PointerProperty(
     name="",
-    description = "Left hand mesh with defined shape keys (the same keys as for the right hand)",
+    description = "Left hand mesh with 'Shape_' keys",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
 )
@@ -281,17 +283,17 @@ bpy.types.Scene.random_positions_ref = bpy.props.PointerProperty(
     poll=lambda self, obj: obj.type == 'MESH',
 )
 
-def get_bone_collections(self, context):
-    items = [("NONE", "None", "Use the whole armature")]
-    armature = context.scene.armature_ref
+def pose_get_bone_collections(self, context):
+    items = [("ALL", "All", "Use the whole armature")]
+    armature = self.armature_ref
     if armature and armature.type == 'ARMATURE':
-        items.extend([(bc.name, bc.name, "") for bc in armature.data.collections])
+        items.extend([(bc.name, bc.name, f"Use {bc.name} collection") for bc in armature.data.collections])
     return items
 
 bpy.types.Scene.selected_bone_collection = bpy.props.EnumProperty(
     name="",
-    items=get_bone_collections,
-    # default="NONE",
+    description="Bone collection",
+    items=pose_get_bone_collections,
 )
 
 bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
@@ -603,7 +605,6 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode='POSE')
                 # Search for the bone
                 for bone in armature.pose.bones:
-                    print("---")
                     for joint in entry["joints"]:
                         if joint.get("name") == bone.name:
                             # Apply bone rotation
@@ -708,6 +709,50 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
         armature.hide_set(curr_hide)
         return {'FINISHED'}
 
+def export_get_bone_colllections(self, context):
+    items = [("ALL", "All", "Use the whole armature")]
+    armature = self.arm_ref
+    if armature and armature.type == 'ARMATURE':
+        items.extend([(bc.name, bc.name, f"Export {bc.name} collection") for bc in armature.data.collections])
+    return items
+
+class ExportArmatureGroup(bpy.types.PropertyGroup):
+    arm_ref: bpy.props.PointerProperty(
+        name="",
+        type=bpy.types.Object,
+        description="Pick an armature to export",
+        poll=lambda self, obj: obj.type == 'ARMATURE',
+    ) # type: ignore
+
+    bone_col: bpy.props.EnumProperty(
+        name="",
+        description="Bone collection",
+        items=export_get_bone_colllections,
+    ) # type: ignore
+
+class VIEW3D_OT_AddExportArmature(bpy.types.Operator):
+    bl_idname = "view3d.add_pointer_item"
+    bl_label = "Add Armature"
+    bl_description = "Add an armature to export"
+
+    def execute(self, context):
+        scene = context.scene
+        scene.export_arm.add()
+        return {'FINISHED'}
+
+class VIEW3D_OT_RemoveExportArmature(bpy.types.Operator):
+    bl_idname = "view3d.remove_pointer_item"
+    bl_label = ""
+    bl_description = "Remove an armature from export"
+
+    index: bpy.props.IntProperty() # type: ignore
+
+    def execute(self, context):
+        scene = context.scene
+        if 0 <= self.index < len(scene.export_arm):
+            scene.export_arm.remove(self.index)
+        return {'FINISHED'}
+
 class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     """"""
     bl_idname = "view3d.export_metadata"
@@ -738,18 +783,25 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         bone_info["rotation_quaternion"] = list(bone.rotation_quaternion)
         return bone_info
 
-    def get_armature_data(self, context, armature_collection, matrix_world):
+    def get_armature_data(self, context, export_armatures, matrix_world):
         armature_data = []
         active_curr = context.view_layer.objects.active
         current_mode = context.mode
-        for armature in armature_collection:
+        for export in export_armatures:
+            armature = export.arm_ref
+            if not armature:
+                continue
+            bone_collection = armature.data.collections.get(export.bone_col)
             context.view_layer.objects.active = armature
             bpy.ops.object.mode_set(mode='POSE')
             armature_info = {}
             armature_info["name"] = armature.name
+            armature_info["bone_collection"] = export.bone_col
             armature_info["joints"] = []
-            context.view_layer.objects.active = armature
+            # context.view_layer.objects.active = armature
             for bone in armature.pose.bones:
+                if bone_collection and bone.name not in bone_collection.bones:
+                    continue
                 bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world)
                 armature_info["joints"].append(bone_info)
             armature_data.append(armature_info)
@@ -764,7 +816,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             self.report({'ERROR'}, "No save folder selected")
             return {'CANCELLED'}
         sensor_collection = bpy.data.collections.get('Sensors')
-        armature_collection = [obj for obj in bpy.data.collections.get('Export armature').objects if obj.type == 'ARMATURE']
+        export_armatures = context.scene.export_arm
         # Get the reference frame
         origin = context.scene.origin_ref
         if origin:
@@ -780,7 +832,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             # Get sensor(s) metadata
             sensors_data = self.get_sensors_data(context, sensor_collection, matrix_world) if sensor_collection else []
             # Get armature(s) metadata
-            armature_data = self.get_armature_data(context, armature_collection, matrix_world) if armature_collection else []
+            armature_data = self.get_armature_data(context, export_armatures, matrix_world) if len(export_armatures) > 0 else []
             # Save metadata
             export_filepath = bpy.path.abspath(folder) + f"Frame_{i:03}_metadata.json"
             with open(export_filepath, 'w') as f:
@@ -977,12 +1029,14 @@ class VIEW3D_OT_ResetMeshShape(bpy.types.Operator):
     def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
-            for key in mesh_right.data.shape_keys.key_blocks:
-                key.value = 0.0
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            for key_right in right_hand_shape_keys:
+                key_right.value = 0.0
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
-            for key in mesh_left.data.shape_keys.key_blocks:
-                key.value = 0.0
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            for key_left in left_hand_shape_keys:
+                key_left.value = 0.0
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
         return{'FINISHED'}
 
@@ -1005,16 +1059,21 @@ class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
         mesh_right = context.scene.deformable_mesh_right_ref
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_right and mesh_left:
-            if len(mesh_right.data.shape_keys.key_blocks) != len(mesh_left.data.shape_keys.key_blocks):
-                self.report({'ERROR'}, "Meshes have different number of shape keys")
-            for key_right, key_left in zip(mesh_right.data.shape_keys.key_blocks, mesh_left.data.shape_keys.key_blocks):
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            if len(right_hand_shape_keys) != len(left_hand_shape_keys):
+                self.report({'ERROR'}, "Meshes have different number of hand shape keys")
+            for key_right, key_left in zip(right_hand_shape_keys, left_hand_shape_keys):
                 key_right.value = key_left.value = random.gauss(0.0, context.scene.std_slider)
-        elif mesh_right:
-            for key_right in mesh_right.data.shape_keys.key_blocks:
-                key_right.value = random.gauss(0.0, context.scene.std_slider)
-        elif mesh_left:
-            for key_left in mesh_left.data.shape_keys.key_blocks:
-                key_left.value = random.gauss(0.0, context.scene.std_slider)
+        else:
+            if mesh_right:
+                right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+                for key_right in right_hand_shape_keys:
+                    key_right.value = random.gauss(0.0, context.scene.std_slider)
+            if mesh_left:
+                left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+                for key_left in left_hand_shape_keys:
+                    key_left.value = random.gauss(0.0, context.scene.std_slider)
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
         return{'FINISHED'}
 
@@ -1036,11 +1095,13 @@ class VIEW3D_OT_ShapeKeyframe(bpy.types.Operator):
     def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
-            for key in mesh_right.data.shape_keys.key_blocks:
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            for key in right_hand_shape_keys:
                 key.keyframe_insert(data_path="value")
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
-            for key in mesh_left.data.shape_keys.key_blocks:
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            for key in left_hand_shape_keys:
                 key.keyframe_insert(data_path="value")
         return{'FINISHED'}
 
@@ -1076,7 +1137,12 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             depsgraph = bpy.context.evaluated_depsgraph_get()
             eval_obj = mesh_right.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
-            vertices = np.array([v.co[:] for v in eval_mesh.vertices])
+            try:
+                vg_index = eval_obj.vertex_groups["RIGHT_HAND"].index
+            except:
+                self.report({'ERROR'}, 'No vertex group "RIGHT_HAND" was found.\nAssign hand vertices to this group.')
+                return{'CANCELLED'}
+            vertices = np.array([v.co[:] for v in eval_mesh.vertices if vg_index in [vg.group for vg in v.groups]])
             # Re-enable the Armature modifier
             for i, mod in enumerate(mesh_right.modifiers):
                 if mod.type == 'ARMATURE':
@@ -1097,7 +1163,12 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             depsgraph = bpy.context.evaluated_depsgraph_get()
             eval_obj = mesh_left.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
-            vertices = np.array([v.co[:] for v in eval_mesh.vertices])
+            try:
+                vg_index = eval_obj.vertex_groups["LEFT_HAND"].index
+            except:
+                self.report({'ERROR'}, 'No vertex group "LEFT_HAND" was found.\nAssign hand vertices to this group.')
+                return{'CANCELLED'}
+            vertices = np.array([v.co[:] for v in eval_mesh.vertices if vg_index in [vg.group for vg in v.groups]])
             # Re-enable the Armature modifier
             for i, mod in enumerate(mesh_left.modifiers):
                 if mod.type == 'ARMATURE':
@@ -1106,6 +1177,7 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             if self.J_regressor_left is None:
                 self.J_regressor_left = lm.load_regressor('LEFT')
             update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
+        
         return{'FINISHED'}
     
 class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
@@ -1128,7 +1200,7 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
     bl_idname = "view3d.configure_compositing"
     bl_label = "Configure Compositing"
-    bl_description = "Configure the compositing node tree to simulate the infrared sensor"
+    bl_description = "Configure the compositing node tree for sensor output simulation and depth pass"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
@@ -1207,19 +1279,38 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         layout_row = layout.row(align=True)
         split_origin = layout_row.split(factor=0.3, align=True)
         split_origin.label(text="World Origin:")
-        split_origin.prop(scene, "origin_ref")
+        split_origin.prop(scene, "origin_ref", icon="ORIENTATION_GLOBAL")
         layout_row = layout.row(align=True)
         split_compositing = layout_row.split(factor=0.7, align=True)
         split_compositing.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
         split_compositing.prop(scene, "override_compositing")
+        
+        layout.separator(type='LINE')
+        for i, item in enumerate(scene.export_arm):
+            box = layout.box()
+            box_row = box.row(align=False)
+            box_col = box_row.column(align=True)
+            box_row_arm = box_col.row(align=True)
+            box_arm = box_row_arm.split(factor=0.27, align=True)
+            box_arm.label(text="Armature:")
+            box_arm.prop(item, "arm_ref", icon='ARMATURE_DATA')
+            box_row_bone = box_col.row(align=True)
+            box_bone = box_row_bone.split(factor=0.27, align=True)
+            box_bone.label(text="Bones:")
+            box_bone.prop(item, "bone_col", icon='GROUP_BONE')
+            col_x = box_row.column(align=True)
+            remove_op = col_x.operator("view3d.remove_pointer_item", icon='X')
+            remove_op.index = i
+        layout.operator("view3d.add_pointer_item", icon='ADD')
+        
         layout.separator(type='LINE')
         layout_row = layout.row(align=True)
         split_render = layout_row.split(factor=0.9, align=True)
-        split_render.operator(VIEW3D_OT_MultiviewRender.bl_idname)
+        split_render.operator(VIEW3D_OT_MultiviewRender.bl_idname, icon="RENDER_ANIMATION")
         split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
         layout_row = layout.row(align=True)
         split_meta = layout_row.split(factor=0.6, align=True)
-        split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname)
+        split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname, icon="EXPORT")
         split_meta.prop(scene, "file_extension_selection")
         layout_row = layout.row(align=True)
         split_save = layout_row.split(factor=0.3, align=True)
@@ -1239,7 +1330,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         scene = context.scene
         
         layout.prop(scene, "hand_selection")
-        layout.operator(VIEW3D_OT_AddMANOHand.bl_idname)
+        layout.operator(VIEW3D_OT_AddMANOHand.bl_idname, icon='ADD')
         # TODO: create separate .blend with SMPL-x with my hands ??
 
 class VIEW3D_PT_Pose(bpy.types.Panel):
@@ -1253,17 +1344,18 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        # layout.label(text="Pose:")
-        # box_action = layout.box()
         layout_arm_col = layout.column(align=True)
-        layout_arm_col.prop(scene, "armature_ref")
+        layout_row_arm = layout_arm_col.row(align=True)
+        layout_arm = layout_row_arm.split(factor=0.3, align=True)
+        layout_arm.label(text="Armature:")
+        layout_arm.prop(scene, "armature_ref", icon='ARMATURE_DATA')
         layout_row_bone = layout_arm_col.row(align=True)
-        layout_bone = layout_row_bone.split(factor=0.4, align=True)
-        layout_bone.label(text="Bone Collection:")
-        layout_bone.prop(scene, "selected_bone_collection")
+        layout_bone = layout_row_bone.split(factor=0.3, align=True)
+        layout_bone.label(text="Bones:")
+        layout_bone.prop(scene, "selected_bone_collection", icon='GROUP_BONE')
         layout_pose_col = layout.column(align=True)
         layout_pose_row = layout_pose_col.row(align=True)
-        layout_pose = layout_pose_row.split(factor=0.4, align=True)
+        layout_pose = layout_pose_row.split(factor=0.3, align=True)
         layout_pose.label(text="Pose:")
         layout_pose.prop(scene, "pose_selection")
         layout_apply_pose_row = layout_pose_col.row(align=True)
@@ -1272,7 +1364,7 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_apply_pose.operator(VIEW3D_OT_DeletePose.bl_idname)
         layout_save_col = layout.column(align=True)
         layout_pose_name_row = layout_save_col.row(align=True)
-        layout_pose_name = layout_pose_name_row.split(factor=0.4, align=True)
+        layout_pose_name = layout_pose_name_row.split(factor=0.3, align=True)
         layout_pose_name.label(text="Pose Name:")
         layout_pose_name.prop(scene, "pose_name")
         layout_save_col.operator(VIEW3D_OT_SavePose.bl_idname)
@@ -1297,11 +1389,11 @@ class VIEW3D_PT_Shape(bpy.types.Panel):
         layout_row = layout_col.row(align=True)
         layout_split = layout_row.split(factor=0.3, align=True)
         layout_split.label(text="Rigth hand:")
-        layout_split.prop(scene, "deformable_mesh_right_ref")
+        layout_split.prop(scene, "deformable_mesh_right_ref", icon='MESH_DATA') # TODO: add group to reshape?? (no left/right). same as export
         layout_row = layout_col.row(align=True)
         layout_split = layout_row.split(factor=0.3, align=True)
         layout_split.label(text="Left hand:")
-        layout_split.prop(scene, "deformable_mesh_left_ref")
+        layout_split.prop(scene, "deformable_mesh_left_ref", icon='MESH_DATA')
         layout_col = layout.column(align=True)
         layout_col.prop(scene, "std_slider")
         layout_row = layout_col.row(align=True)
@@ -1329,20 +1421,20 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_add = layout_add_row.split(factor=0.35, align=True)
         layout_add.label(text="Type:")
         layout_add.prop(scene, "sensor_type")
-        layout_add_col.operator(VIEW3D_OT_AddSensor.bl_idname)
+        layout_add_col.operator(VIEW3D_OT_AddSensor.bl_idname, icon='ADD')
         layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
         # box_sensor.separator()
         layout_rand_col = layout.column(align=True)
         layout_row = layout_rand_col.row(align=True)
         layout_split = layout_row.split(factor=0.35, align=True)
         layout_split.label(text="Sample mesh:")
-        layout_split.prop(scene, "random_positions_ref")
+        layout_split.prop(scene, "random_positions_ref", icon='MESH_DATA')
         # box_rand_col.separator(factor=0.2, type='SPACE')
         # box_rand_col.prop(scene, "random_positions_ref")
         layout_row = layout_rand_col.row(align=True)
         layout_split = layout_row.split(factor=0.35, align=True)
         layout_split.label(text="Orientation:")
-        layout_split.prop(scene, "sensor_orientation")
+        layout_split.prop(scene, "sensor_orientation", icon='ORIENTATION_NORMAL')
         # box_rand_col.separator(factor=0.2, type='SPACE')
         layout_rand_col.operator(VIEW3D_OT_RandomSensorPosition.bl_idname)
         """layout_rand_angle = layout.column(align=True)
@@ -1359,6 +1451,9 @@ classes = (
     VIEW3D_OT_MultiviewRender,
     VIEW3D_OT_InfoBox,
     VIEW3D_OT_ExportMetadata,
+    ExportArmatureGroup,
+    VIEW3D_OT_AddExportArmature,
+    VIEW3D_OT_RemoveExportArmature,
     VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_ResetPose,
@@ -1387,6 +1482,7 @@ def register():
     reload_modules()
     for cls in classes:
         bpy.utils.register_class(cls)
+    bpy.types.Scene.export_arm = bpy.props.CollectionProperty(type=ExportArmatureGroup)
     print("IR Style Render Registered (N-Panel)")
 
 def unregister():

@@ -147,13 +147,17 @@ def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents,
     bpy.ops.object.mode_set(mode='OBJECT')
     return armature_obj
 
-def assign_skinning_weights(obj, weights, bone_names):
+def assign_skinning_weights(obj, weights, bone_names, hand):
     for joint_idx, bone_name in enumerate(bone_names):
         # Create vertex group for each joint
         vg = obj.vertex_groups.new(name=bone_name)
         for v_idx, w in enumerate(weights[:, joint_idx]):
             if w > 0:
                 vg.add([v_idx], w, 'REPLACE')
+    # 
+    full_hand = obj.vertex_groups.new(name=f"{hand}_HAND")
+    verts = [v.index for v in obj.data.vertices]
+    full_hand.add(verts, 1.0, 'REPLACE')
 
 def add_constraints_to_armature(armature):
     bpy.context.view_layer.objects.active = armature
@@ -212,12 +216,12 @@ def add_constraints_to_armature(armature):
         else:
             # Proximal
             constraint = bone.constraints.new('LIMIT_ROTATION')
-            constraint.min_x = radians(-90.0)
+            constraint.min_x = radians(-110.0)
             constraint.max_x = radians(15.0)
             constraint.use_limit_x = True
             if bone.name == BONE_NAMES[7]:      # if pinky
-                constraint.min_y = 0.0
-                constraint.max_y = 0.0
+                constraint.min_y = radians(-15.0)
+                constraint.max_y = radians(35.0)
             elif bone.name == BONE_NAMES[10]:   # if ring
                 constraint.min_y = radians(-5.0)
                 constraint.max_y = radians(15.0)
@@ -303,7 +307,7 @@ def load_mano_hand(hand: str):
 
     arm_mod = mesh.modifiers.new(name="ArmatureDeform", type='ARMATURE')
     arm_mod.object = arm
-    assign_skinning_weights(mesh, weights, BONE_NAMES)
+    assign_skinning_weights(mesh, weights, BONE_NAMES, hand)
 
     add_constraints_to_armature(arm)
 
