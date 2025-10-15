@@ -154,8 +154,8 @@ def assign_skinning_weights(obj, weights, bone_names, hand):
         for v_idx, w in enumerate(weights[:, joint_idx]):
             if w > 0:
                 vg.add([v_idx], w, 'REPLACE')
-    # 
-    full_hand = obj.vertex_groups.new(name=f"{hand}_HAND")
+    # Add the whole mesh to a vertex group
+    full_hand = obj.vertex_groups.new(name=f"MANO_{hand}_HAND")
     verts = [v.index for v in obj.data.vertices]
     full_hand.add(verts, 1.0, 'REPLACE')
 
@@ -222,6 +222,8 @@ def add_constraints_to_armature(armature):
             if bone.name == BONE_NAMES[7]:      # if pinky
                 constraint.min_y = radians(-15.0)
                 constraint.max_y = radians(35.0)
+                constraint.min_z = radians(-20.0)
+                constraint.max_z = radians(0.0)
             elif bone.name == BONE_NAMES[10]:   # if ring
                 constraint.min_y = radians(-5.0)
                 constraint.max_y = radians(15.0)

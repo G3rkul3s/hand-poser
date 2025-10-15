@@ -1363,5 +1363,1133 @@
                 ]
             }
         ]
+    },
+    {
+        "name": "Holding Large Ball",
+        "arm_name": "SMPLX-lh-female",
+        "joints": [
+            {
+                "name": "root",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "pelvis",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_hip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_knee",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ankle",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_foot",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_hip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_knee",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_ankle",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_foot",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "spine1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "spine2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "spine3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "neck",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "head",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "jaw",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_eye_smplhf",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_eye_smplhf",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_collar",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_shoulder",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_elbow",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_index1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_index2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_index3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_middle1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_middle2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_middle3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_pinky1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_pinky2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_pinky3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ring1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ring2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ring3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_thumb1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_thumb2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_thumb3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_collar",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "Wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "IndexProximal",
+                "rotation_quaternion": [
+                    0.9425206184387207,
+                    -0.3076002299785614,
+                    0.12408517301082611,
+                    0.040496330708265305
+                ]
+            },
+            {
+                "name": "IndexIntermadiate",
+                "rotation_quaternion": [
+                    0.9972772598266602,
+                    -0.07374291121959686,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "IndexDistal",
+                "rotation_quaternion": [
+                    0.9796343445777893,
+                    -0.2007899135351181,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "IndexTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "MiddleProximal",
+                "rotation_quaternion": [
+                    0.9742991328239441,
+                    -0.2252579629421234,
+                    2.041415703146754e-09,
+                    4.719752921822362e-10
+                ]
+            },
+            {
+                "name": "MiddleIntermadiate",
+                "rotation_quaternion": [
+                    0.9714429974555969,
+                    -0.23727299273014069,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "MiddleDistal",
+                "rotation_quaternion": [
+                    0.9813162088394165,
+                    -0.19240203499794006,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "MiddleTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LittleProximal",
+                "rotation_quaternion": [
+                    0.9842721223831177,
+                    -0.17660512030124664,
+                    0.004302917048335075,
+                    0.000772060186136514
+                ]
+            },
+            {
+                "name": "LittleIntermadiate",
+                "rotation_quaternion": [
+                    0.9430841207504272,
+                    -0.33255425095558167,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LittleDistal",
+                "rotation_quaternion": [
+                    0.999537467956543,
+                    -0.03041098825633526,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LittleTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "RingProximal",
+                "rotation_quaternion": [
+                    0.9848077297210693,
+                    -0.17364823818206787,
+                    3.299156725589114e-09,
+                    5.817305526178984e-10
+                ]
+            },
+            {
+                "name": "RingIntermadiate",
+                "rotation_quaternion": [
+                    0.9665913581848145,
+                    -0.25632229447364807,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "RingDistal",
+                "rotation_quaternion": [
+                    0.9869235157966614,
+                    -0.1611894965171814,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "RingTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "ThumbMetacarpal",
+                "rotation_quaternion": [
+                    0.991875171661377,
+                    0.040234148502349854,
+                    0.1205858588218689,
+                    -0.004891411401331425
+                ]
+            },
+            {
+                "name": "ThumbProximal",
+                "rotation_quaternion": [
+                    0.9896344542503357,
+                    -0.1436096429824829,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "ThumbDistal",
+                "rotation_quaternion": [
+                    0.9994934797286987,
+                    -0.03182490915060043,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "ThumbTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Holding Small Ball",
+        "arm_name": "SMPLX-lh-female",
+        "joints": [
+            {
+                "name": "root",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "pelvis",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_hip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_knee",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ankle",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_foot",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_hip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_knee",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_ankle",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_foot",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "spine1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "spine2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "spine3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "neck",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "head",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "jaw",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_eye_smplhf",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_eye_smplhf",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_collar",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_shoulder",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_elbow",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_index1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_index2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_index3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_middle1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_middle2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_middle3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_pinky1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_pinky2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_pinky3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ring1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ring2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_ring3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_thumb1",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_thumb2",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "left_thumb3",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_collar",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "Wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "IndexProximal",
+                "rotation_quaternion": [
+                    0.9661588668823242,
+                    -0.25644412636756897,
+                    0.02687959186732769,
+                    0.0071345544420182705
+                ]
+            },
+            {
+                "name": "IndexIntermadiate",
+                "rotation_quaternion": [
+                    0.8217579126358032,
+                    -0.5698367953300476,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "IndexDistal",
+                "rotation_quaternion": [
+                    0.9900310039520264,
+                    -0.14084945619106293,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "IndexTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "MiddleProximal",
+                "rotation_quaternion": [
+                    0.9636808037757874,
+                    -0.26705673336982727,
+                    4.7435460004408014e-09,
+                    1.314539033181461e-09
+                ]
+            },
+            {
+                "name": "MiddleIntermadiate",
+                "rotation_quaternion": [
+                    0.8271505236625671,
+                    -0.5619805455207825,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "MiddleDistal",
+                "rotation_quaternion": [
+                    0.9975448250770569,
+                    -0.07003036886453629,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "MiddleTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LittleProximal",
+                "rotation_quaternion": [
+                    0.875809907913208,
+                    -0.4262107312679291,
+                    -0.0391981266438961,
+                    -0.2230806052684784
+                ]
+            },
+            {
+                "name": "LittleIntermadiate",
+                "rotation_quaternion": [
+                    0.9746971726417542,
+                    -0.2235293984413147,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LittleDistal",
+                "rotation_quaternion": [
+                    0.9829567074775696,
+                    -0.18383698165416718,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LittleTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "RingProximal",
+                "rotation_quaternion": [
+                    0.9700047969818115,
+                    -0.24308578670024872,
+                    1.4038002760230484e-08,
+                    3.5179608115498695e-09
+                ]
+            },
+            {
+                "name": "RingIntermadiate",
+                "rotation_quaternion": [
+                    0.8620337247848511,
+                    -0.5068508982658386,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "RingDistal",
+                "rotation_quaternion": [
+                    0.9814982414245605,
+                    -0.1914709508419037,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "RingTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "ThumbMetacarpal",
+                "rotation_quaternion": [
+                    0.946445107460022,
+                    -0.24968494474887848,
+                    0.19792097806930542,
+                    0.052214208990335464
+                ]
+            },
+            {
+                "name": "ThumbProximal",
+                "rotation_quaternion": [
+                    0.9803885817527771,
+                    -0.1970742642879486,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "ThumbDistal",
+                "rotation_quaternion": [
+                    0.9999287724494934,
+                    -0.011934439651668072,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "ThumbTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        ]
     }
 ]

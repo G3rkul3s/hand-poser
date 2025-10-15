@@ -171,7 +171,7 @@ def load_poses_from_file(self, context):
 
 bpy.types.Scene.light_selection = bpy.props.EnumProperty(
     name="",
-    description="Choose render type",
+    description="Render type",
     items=[
         ('RGB', "RGB", "Render with scene lighting"),
         ('IR', "Infrared", "Render with infrared sensor lighting"),
@@ -183,7 +183,7 @@ bpy.types.Scene.light_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
     name="Hand",
-    description="Choose MANO hand type",
+    description="MANO hand",
     items=[
         ('LEFT', "Left", "Left hand"),
         ('RIGHT', "Right", "Right hand")
@@ -193,7 +193,7 @@ bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
     name="",
-    description="Choose file extension",
+    description="File extension",
     items=[
         ('JSON', ".json", "Export to .json"),
         # ('FBS', ".fbs", "Export to .fbs")
@@ -203,7 +203,7 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
     name="",
-    description="Choose predefined pose", # TODO: decide if .\nIt is armature name sensetive
+    description="Predefined pose", # TODO: decide if .\nIt is armature name sensetive
     items=load_poses_from_file,
 )
 
@@ -255,7 +255,7 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
 
 bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
     name="",
-    description = "Right hand mesh with 'Shape_' keys",
+    description = "Mesh containnig MANO hand mesh with 'Shape_#' keys",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
 )
@@ -264,12 +264,12 @@ bpy.types.Scene.deformable_mesh_left_ref = bpy.props.PointerProperty(
     name="",
     description = "Left hand mesh with 'Shape_' keys",
     type=bpy.types.Object,
-    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
+    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys and (obj.vertex_groups["MANO_RIGHT_HAND"] or obj.vertex_groups["MANO_LEFT_HAND"]),
 )
 
 bpy.types.Scene.sensor_type = bpy.props.EnumProperty(
     name="",
-    description="Choose sensor type",
+    description="Sensor type",
     items=[
         ('LEAPSTEREO', "Stereo IR 170", "Ultraleap stereo camera"),
     ],
@@ -298,7 +298,7 @@ bpy.types.Scene.selected_bone_collection = bpy.props.EnumProperty(
 
 bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
     name="",
-    description="Choose sensor orientation (where it points)",
+    description="Sensor orientation",
     items=[
         ('KEEP', "Keep", "Keep the original orientation"),
         ('NORMAL', "Normals", "Pointing along the normals of the sample mesh"),
@@ -731,8 +731,8 @@ class ExportArmatureGroup(bpy.types.PropertyGroup):
     ) # type: ignore
 
 class VIEW3D_OT_AddExportArmature(bpy.types.Operator):
-    bl_idname = "view3d.add_pointer_item"
-    bl_label = "Add Armature"
+    bl_idname = "view3d.add_export_armature"
+    bl_label = "Add"
     bl_description = "Add an armature to export"
 
     def execute(self, context):
@@ -757,7 +757,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     """"""
     bl_idname = "view3d.export_metadata"
     bl_label = "Export Metadata"
-    bl_description="Export metadata for each animation frame"
+    bl_description="Export sensors and joint positions for each frame"
 
     def get_sensors_data(self, context, sensor_collection, matrix_world):
         sensors_data = []
@@ -1138,9 +1138,9 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             eval_obj = mesh_right.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             try:
-                vg_index = eval_obj.vertex_groups["RIGHT_HAND"].index
+                vg_index = eval_obj.vertex_groups["MANO_RIGHT_HAND"].index
             except:
-                self.report({'ERROR'}, 'No vertex group "RIGHT_HAND" was found.\nAssign hand vertices to this group.')
+                self.report({'ERROR'}, 'No vertex group "MANO_RIGHT_HAND" was found.\nAssign hand vertices to this group.')
                 return{'CANCELLED'}
             vertices = np.array([v.co[:] for v in eval_mesh.vertices if vg_index in [vg.group for vg in v.groups]])
             # Re-enable the Armature modifier
@@ -1164,9 +1164,9 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             eval_obj = mesh_left.evaluated_get(depsgraph)
             eval_mesh = eval_obj.to_mesh()
             try:
-                vg_index = eval_obj.vertex_groups["LEFT_HAND"].index
+                vg_index = eval_obj.vertex_groups["MANO_LEFT_HAND"].index
             except:
-                self.report({'ERROR'}, 'No vertex group "LEFT_HAND" was found.\nAssign hand vertices to this group.')
+                self.report({'ERROR'}, 'No vertex group "MANO_LEFT_HAND" was found.\nAssign hand vertices to this group.')
                 return{'CANCELLED'}
             vertices = np.array([v.co[:] for v in eval_mesh.vertices if vg_index in [vg.group for vg in v.groups]])
             # Re-enable the Armature modifier
@@ -1189,12 +1189,6 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     def execute(self, context):
         obj = lm.load_mano_hand(context.scene.hand_selection)
         obj.location = context.scene.cursor.location
-        target_collection = bpy.data.collections.get("Export armature")
-        if not target_collection:
-            target_collection = bpy.data.collections.new("Export armature")
-            context.scene.collection.children.link(target_collection)
-        if obj.name not in target_collection.objects:
-            target_collection.objects.link(obj) # NOTE: this creates a duplicate
         return{'FINISHED'}
 
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
@@ -1286,6 +1280,7 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         split_compositing.prop(scene, "override_compositing")
         
         layout.separator(type='LINE')
+        layout.label(text="Armatures to export:")
         for i, item in enumerate(scene.export_arm):
             box = layout.box()
             box_row = box.row(align=False)
@@ -1301,7 +1296,7 @@ class VIEW3D_PT_Export(bpy.types.Panel):
             col_x = box_row.column(align=True)
             remove_op = col_x.operator("view3d.remove_pointer_item", icon='X')
             remove_op.index = i
-        layout.operator("view3d.add_pointer_item", icon='ADD')
+        layout.operator("view3d.add_export_armature", icon='ADD')
         
         layout.separator(type='LINE')
         layout_row = layout.row(align=True)
@@ -1389,7 +1384,7 @@ class VIEW3D_PT_Shape(bpy.types.Panel):
         layout_row = layout_col.row(align=True)
         layout_split = layout_row.split(factor=0.3, align=True)
         layout_split.label(text="Rigth hand:")
-        layout_split.prop(scene, "deformable_mesh_right_ref", icon='MESH_DATA') # TODO: add group to reshape?? (no left/right). same as export
+        layout_split.prop(scene, "deformable_mesh_right_ref", icon='MESH_DATA')
         layout_row = layout_col.row(align=True)
         layout_split = layout_row.split(factor=0.3, align=True)
         layout_split.label(text="Left hand:")
@@ -1444,7 +1439,7 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_rand_angle_row.prop(scene, "angle_restriction")
         layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
         layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
-        # TODO: add button to consider IR from "natural" sources (sun)
+        # TODO: add radio button to consider IR from "natural" sources (sun)
         # TODO: metall frame + sensor as a separate .blend file ???
 
 classes = (
