@@ -151,8 +151,9 @@ def load_poses_from_file(self, context):
             except json.JSONDecodeError:
                 return {'CANCELLED'}
             for pose in data:
-                pose_name = pose["name"]
-                items.append((pose_name, pose_name, ""))
+                if pose["arm_name"] == context.scene.armature_ref.name and pose["bone_col"] == context.scene.selected_bone_collection:
+                    pose_name = pose["name"]
+                    items.append((pose_name, pose_name, ""))
     return items
 
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
@@ -335,19 +336,20 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             self.report({'ERROR'}, "Save folder not selected")
             return {'CANCELLED'}
         # Set up multiview render
-        context.scene.render.use_multiview = True
-        context.scene.render.filepath = bpy.path.abspath(folder + "Frame_")
-        sensor_names = {obj.name for obj in sensor_collection.objects if obj.type == 'CAMERA'}
-        views = context.scene.render.views
-        for v in list(views):
-            if v.name == 'left' or v.name == 'right':
-                v.use = False
-            elif v.name not in sensor_names:
-#                views.remove(v)
-                v.use = False
-            # else:
-            #     v.use = True
+        # NOTE: disabled for now
+#         context.scene.render.use_multiview = True
+#         sensor_names = {obj.name for obj in sensor_collection.objects if obj.type == 'CAMERA'}
+#         views = context.scene.render.views
+#         for v in list(views):
+#             if v.name == 'left' or v.name == 'right':
+#                 v.use = False
+#             elif v.name not in sensor_names:
+# #                views.remove(v)
+#                 v.use = False
+#             # else:
+#             #     v.use = True
         # Invoke render
+        context.scene.render.filepath = bpy.path.abspath(folder + "Frame_")
         # TODO: turn on and off light for each sensor
         bpy.ops.render.render(animation=True)
         self.report({'INFO'}, "Render successfully saved")
@@ -384,6 +386,8 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         return spot_data
 
     def execute(self, context):
+        # current_mode = context.mode
+        # bpy.ops.object.mode_set(mode='OBJECT')
         collection_name  = "Sensors"
         if context.scene.sensor_type == 'LEAPSTEREO': # TODO: add sensor casing
             base_name = "LeapSensor"
@@ -400,12 +404,16 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             # Create an empty
             empty = bpy.data.objects.new(name=empty_name, object_data=None)
             empty.empty_display_type = 'PLAIN_AXES'
-            empty.scale = (0.2, 0.2, 0.2)
             target_collection.objects.link(empty)
+            empty.empty_display_size = 0.2
 
+            # Import the camera model
+            bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/UltraleapStereoIR170Casing.obj'), check_existing=True)
+            imported_object = bpy.context.selected_objects[0]
+            imported_object.parent = empty
             # Create cameras
-            render = context.scene.render
-            view_names = {v.name for v in render.views}
+            # render = context.scene.render
+            # view_names = {v.name for v in render.views}
             
             cam_left_data = self.new_sensor_camera()
             cam_left_obj = bpy.data.objects.new(name=f"Camera_{base_name}_{index:03}_Left", 
@@ -415,12 +423,12 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_left_obj.scale = (0.2, 0.2, 0.2)
             target_collection.objects.link(cam_left_obj)
             
-            cam_left_name = f"Camera_{base_name}_{index:03}_Left"
-            if cam_left_name not in view_names:
-                cam_left_rv = render.views.new(name=cam_left_name)
-                cam_left_rv.camera_suffix = f"_{base_name}_{index:03}_Left"
-                cam_left_rv.use = True
-                # cam_left_rv.file_suffix = ""
+            # cam_left_name = f"Camera_{base_name}_{index:03}_Left"
+            # if cam_left_name not in view_names:
+            #     cam_left_rv = render.views.new(name=cam_left_name)
+            #     cam_left_rv.camera_suffix = f"_{base_name}_{index:03}_Left"
+            #     cam_left_rv.use = True
+            #     # cam_left_rv.file_suffix = ""
             
             cam_right_data = self.new_sensor_camera()
             cam_right_obj = bpy.data.objects.new(name=f"Camera_{base_name}_{index:03}_Right", 
@@ -430,20 +438,19 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_right_obj.scale = (0.2, 0.2, 0.2)
             target_collection.objects.link(cam_right_obj)
             
-            cam_right_name = f"Camera_{base_name}_{index:03}_Right"
-            if cam_right_name not in view_names:
-                cam_right_rv = render.views.new(name=cam_right_name)
-                cam_right_rv.camera_suffix = f"_{base_name}_{index:03}_Right"
-                cam_right_rv.use = True
-                # cam_right_rv.file_suffix = ""
+            # cam_right_name = f"Camera_{base_name}_{index:03}_Right"
+            # if cam_right_name not in view_names:
+            #     cam_right_rv = render.views.new(name=cam_right_name)
+            #     cam_right_rv.camera_suffix = f"_{base_name}_{index:03}_Right"
+            #     cam_right_rv.use = True
+            #     # cam_right_rv.file_suffix = ""
             
             # Create IR LEDs
-            
             spot_left_data = self.new_ir_light()
             
             spot_obj_left = bpy.data.objects.new(name=f"IR_LED_{index:03}_Left", object_data=spot_left_data)
             spot_obj_left.parent = empty
-            spot_obj_left.location = (-0.06, 0.0, 0.0)
+            spot_obj_left.location = (-0.05, 0.0, 0.0)
             spot_obj_left.scale = (0.1, 0.1, 0.1)
             target_collection.objects.link(spot_obj_left)
             
@@ -451,7 +458,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             
             spot_obj_right = bpy.data.objects.new(name=f"IR_LED_{index:03}_Right", object_data=spot_right_data)
             spot_obj_right.parent = empty
-            spot_obj_right.location = (0.06, 0.0, 0.0)
+            spot_obj_right.location = (0.05, 0.0, 0.0)
             spot_obj_right.scale = (0.1, 0.1, 0.1)
             target_collection.objects.link(spot_obj_right)
 
@@ -467,6 +474,8 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             if not sensors_view_layer.exclude:
                 context.view_layer.objects.active = empty
                 empty.select_set(True)
+            
+            empty.location = context.scene.cursor.location
         return {'FINISHED'}
 
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
@@ -571,7 +580,9 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
-        if any(entry.get("name") == armature_info.get("name") for entry in data):
+        if any(entry.get("name") == armature_info.get("name") 
+               and entry.get("arm_name") == context.scene.armature_ref.name 
+               and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
             self.report({'ERROR'}, "A pose with this name already exists")
             return {'CANCELLED'}
         data.append(armature_info)
@@ -602,7 +613,9 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
-        if any(entry.get("name") == context.scene.pose_name for entry in data):
+        if any(entry.get("name") == context.scene.pose_name 
+               and entry.get("arm_name") == context.scene.armature_ref.name 
+               and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
             self.report({'ERROR'}, "A pose with this name already exists")
             return {'CANCELLED'}
         for pose in data:
@@ -639,7 +652,9 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
         pose = context.scene.pose_selection
         # Search for the pose
         for entry in data:
-            if entry.get("name") == pose:
+            if (entry.get("name") == pose 
+                and entry.get("arm_name") == context.scene.armature_ref.name 
+                and entry.get("bone_col") == context.scene.selected_bone_collection):
                 active_curr = context.view_layer.objects.active
                 current_mode = context.mode
                 context.view_layer.objects.active = armature
@@ -679,7 +694,9 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
         # Exclude the pose
-        new_data = [entry for entry in data if entry.get("name") != context.scene.pose_selection]
+        new_data = [entry for entry in data if not (entry.get("name") == context.scene.pose_selection
+                                                    and entry.get("arm_name") == context.scene.armature_ref.name 
+                                                    and entry.get("bone_col") == context.scene.selected_bone_collection)]
         # Save updated list back
         with open(POSE_PATH, 'w') as f:
             json.dump(new_data, f, indent=4)
@@ -1275,6 +1292,10 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
         lens_distortion_image.inputs["Distortion"].default_value = 1.0
         lens_distortion_alpha.inputs["Distortion"].default_value = 1.0
         lens_distortion_mist.inputs["Distortion"].default_value = 1.0
+        # Disable the distortion for now
+        lens_distortion_image.mute = True
+        lens_distortion_alpha.mute = True
+        lens_distortion_mist.mute = True
         # Set the saturation curve to a flat line at 0.0
         sat_curve = hue_correct.mapping.curves[1]  # 0=H, 1=S, 2=V
         # Remove existing points on the curve

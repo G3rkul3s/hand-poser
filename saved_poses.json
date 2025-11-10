@@ -8521,7 +8521,7 @@
         "bone_col": "RightHand"
     },
     {
-        "name": "Holding Scredriver",
+        "name": "Holding Screwdriver",
         "arm_name": "SMPLX-lh-female",
         "joints": [
             {
@@ -9086,197 +9086,26 @@
         "bone_col": "RightHand"
     },
     {
-        "name": "Arm in Front",
+        "name": "Resting",
         "arm_name": "SMPLX-lh-female",
-        "bone_col": "RightHand",
+        "bone_col": "LeftArm",
         "joints": [
-            {
-                "name": "root",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "pelvis",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_hip",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_knee",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_ankle",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_foot",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "right_hip",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "right_knee",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "right_ankle",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "right_foot",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "spine1",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "spine2",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "spine3",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "neck",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "head",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "jaw",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_eye_smplhf",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "right_eye_smplhf",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_collar",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
             {
                 "name": "left_shoulder",
                 "rotation_quaternion": [
-                    0.881337583065033,
-                    0.07105144113302231,
-                    -0.18924672901630402,
-                    -0.427061527967453
+                    0.801719069480896,
+                    0.10039513558149338,
+                    -0.1754521131515503,
+                    -0.5624803304672241
                 ]
             },
             {
                 "name": "left_elbow",
                 "rotation_quaternion": [
-                    0.9492241740226746,
-                    0.04755719006061554,
-                    -0.176131471991539,
-                    -0.25629961490631104
+                    0.9821289777755737,
+                    0.08016844838857651,
+                    -0.1673976331949234,
+                    -0.03120468556880951
                 ]
             },
             {
@@ -9287,151 +9116,116 @@
                     0.0,
                     0.0
                 ]
+            }
+        ]
+    },
+    {
+        "name": "Bottom Right",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.8468632698059082,
+                    -0.2316695600748062,
+                    0.23584617674350739,
+                    0.41656801104545593
+                ]
             },
             {
-                "name": "left_index1",
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.8995316028594971,
+                    -0.08251633495092392,
+                    0.33988428115844727,
+                    0.2617492973804474
+                ]
+            },
+            {
+                "name": "right_wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
                     0.0,
                     0.0
                 ]
+            }
+        ]
+    },
+    {
+        "name": "Bottom Left",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.7351731061935425,
+                    -0.23911067843437195,
+                    0.33397600054740906,
+                    0.5392655730247498
+                ]
             },
             {
-                "name": "left_index2",
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.7581192255020142,
+                    0.08677954971790314,
+                    0.2982822358608246,
+                    0.5733693242073059
+                ]
+            },
+            {
+                "name": "right_wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
                     0.0,
                     0.0
                 ]
+            }
+        ]
+    },
+    {
+        "name": "Bottom Center",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.825314998626709,
+                    -0.25331947207450867,
+                    0.2359601855278015,
+                    0.4461032450199127
+                ]
             },
             {
-                "name": "left_index3",
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.7298691272735596,
+                    0.037485357373952866,
+                    0.3619503080844879,
+                    0.5786863565444946
+                ]
+            },
+            {
+                "name": "right_wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
                     0.0,
                     0.0
                 ]
-            },
-            {
-                "name": "left_middle1",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_middle2",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_middle3",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_pinky1",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_pinky2",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_pinky3",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_ring1",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_ring2",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_ring3",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_thumb1",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_thumb2",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "left_thumb3",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            {
-                "name": "right_collar",
-                "rotation_quaternion": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
+            }
+        ]
+    },
+    {
+        "name": "Center Center",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
             {
                 "name": "right_shoulder",
                 "rotation_quaternion": [
@@ -9457,6 +9251,176 @@
                     0.0,
                     0.0,
                     0.0
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Center Right",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.8446437120437622,
+                    -0.3454471230506897,
+                    0.32058534026145935,
+                    0.2539074420928955
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.9183475375175476,
+                    -0.05990178883075714,
+                    0.273359477519989,
+                    0.27986472845077515
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    0.993533194065094,
+                    -0.08599033206701279,
+                    0.07382067292928696,
+                    -0.006923099048435688
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Center Left",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.6570257544517517,
+                    -0.29261013865470886,
+                    0.5705165863037109,
+                    0.3964945077896118
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.7790746092796326,
+                    -0.09320829808712006,
+                    0.3935340642929077,
+                    0.47904708981513977
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Top Left",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.4268780052661896,
+                    -0.40891340374946594,
+                    0.758252739906311,
+                    0.274988055229187
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.83259516954422,
+                    -0.24757912755012512,
+                    0.41515597701072693,
+                    0.2704361379146576
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    0.9945271015167236,
+                    -0.004160360433161259,
+                    0.10183928906917572,
+                    -0.022962940856814384
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Top Center",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.6408481597900391,
+                    -0.4887474775314331,
+                    0.44696488976478577,
+                    0.3881527781486511
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.6892169117927551,
+                    -0.317156583070755,
+                    0.39940890669822693,
+                    0.5146501660346985
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    0.9945271015167236,
+                    -0.004160360433161259,
+                    0.10183928906917572,
+                    -0.022962940856814384
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Top Right",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArm",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.6894747018814087,
+                    -0.5570363998413086,
+                    0.3728540539741516,
+                    0.27443698048591614
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.726285457611084,
+                    -0.22983717918395996,
+                    0.616636335849762,
+                    0.19860687851905823
+                ]
+            },
+            {
+                "name": "right_wrist",
+                "rotation_quaternion": [
+                    0.9575653672218323,
+                    -0.2686447501182556,
+                    0.10427801311016083,
+                    0.004963400773704052
                 ]
             }
         ]
