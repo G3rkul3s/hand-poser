@@ -7,7 +7,7 @@ bl_info = {
     "description": "Adds a custom panel to the 3D Viewport's N-Panel for IR simulated sensor render.",
     "warning": "",
     "doc_url": "",
-    "category": "Render",
+    "category": "Hand Poser",
 }
 
 import bpy
@@ -255,14 +255,14 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
 
 bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
     name="",
-    description = "Mesh containnig MANO hand mesh with 'Shape_#' keys",
+    description = "Mesh with MANO right hand vertex group and shape keys",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
 )
 
 bpy.types.Scene.deformable_mesh_left_ref = bpy.props.PointerProperty(
     name="",
-    description = "Left hand mesh with 'Shape_' keys",
+    description = "Mesh with MANO left hand vertex group and shape keys",
     type=bpy.types.Object,
     poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys and (obj.vertex_groups["MANO_RIGHT_HAND"] or obj.vertex_groups["MANO_LEFT_HAND"]),
 )
@@ -348,6 +348,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             # else:
             #     v.use = True
         # Invoke render
+        # TODO: turn on and off light for each sensor
         bpy.ops.render.render(animation=True)
         self.report({'INFO'}, "Render successfully saved")
         return {'FINISHED'}
@@ -377,93 +378,95 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 
     def new_ir_light(self, light_name='Spot'):
         spot_data = bpy.data.lights.new(name=light_name, type='SPOT')
-        spot_data.energy = 0.1
+        spot_data.energy = 0.5 # TODO: not sure what level should be apropriate
         spot_data.spot_size = radians(180.0)
         spot_data.spot_blend = 0.3
         return spot_data
 
     def execute(self, context):
         collection_name  = "Sensors"
-        base_name = "Sensor"
-        index = 1
-        while f"{base_name}.{index:03}" in bpy.data.objects:
-            index += 1
-        empty_name = f"{base_name}.{index:03}"
-        
-        target_collection = bpy.data.collections.get(collection_name)
-        if not target_collection:
-            target_collection = bpy.data.collections.new(collection_name)
-            context.scene.collection.children.link(target_collection)
-        
-        # Create an empty
-        empty = bpy.data.objects.new(name=empty_name, object_data=None)
-        empty.empty_display_type = 'PLAIN_AXES'
-        empty.scale = (0.2, 0.2, 0.2)
-        target_collection.objects.link(empty)
+        if context.scene.sensor_type == 'LEAPSTEREO': # TODO: add sensor casing
+            base_name = "LeapSensor"
+            index = 1
+            while f"{base_name}.{index:03}" in bpy.data.objects:
+                index += 1
+            empty_name = f"{base_name}.{index:03}"
+            
+            target_collection = bpy.data.collections.get(collection_name)
+            if not target_collection:
+                target_collection = bpy.data.collections.new(collection_name)
+                context.scene.collection.children.link(target_collection)
+            
+            # Create an empty
+            empty = bpy.data.objects.new(name=empty_name, object_data=None)
+            empty.empty_display_type = 'PLAIN_AXES'
+            empty.scale = (0.2, 0.2, 0.2)
+            target_collection.objects.link(empty)
 
-        # Create cameras
-        
-        render = context.scene.render
-        view_names = {v.name for v in render.views}
-        
-        cam_left_data = self.new_sensor_camera()
-        cam_left_obj = bpy.data.objects.new(name=f"Camera_Sensor_{index:03}_Left", 
-                                            object_data=cam_left_data)
-        cam_left_obj.parent = empty
-        cam_left_obj.location = (-0.032, 0.0, 0.0)
-        cam_left_obj.scale = (0.2, 0.2, 0.2)
-        target_collection.objects.link(cam_left_obj)
-        
-        cam_left_name = f"Camera_Sensor_{index:03}_Left"
-        if cam_left_name not in view_names:
-            cam_left_rv = render.views.new(name=cam_left_name)
-            cam_left_rv.camera_suffix = f"_Sensor_{index:03}_Left"
-            cam_left_rv.use = True
-            # cam_left_rv.file_suffix = ""
-        
-        cam_right_data = self.new_sensor_camera()
-        cam_right_obj = bpy.data.objects.new(name=f"Camera_Sensor_{index:03}_Right", 
-                                            object_data=cam_right_data)
-        cam_right_obj.parent = empty
-        cam_right_obj.location = (0.032, 0.0, 0.0)
-        cam_right_obj.scale = (0.2, 0.2, 0.2)
-        target_collection.objects.link(cam_right_obj)
-        
-        cam_right_name = f"Camera_Sensor_{index:03}_Right"
-        if cam_right_name not in view_names:
-            cam_right_rv = render.views.new(name=cam_right_name)
-            cam_right_rv.camera_suffix = f"_Sensor_{index:03}_Right"
-            cam_right_rv.use = True
-            # cam_right_rv.file_suffix = ""
-        
-        # Create IR LEDs
-        
-        spot_left_data = self.new_ir_light()
-        
-        spot_obj_left = bpy.data.objects.new(name=f"IR_LED_{index:03}_Left", object_data=spot_left_data)
-        spot_obj_left.parent = empty
-        spot_obj_left.location = (-0.06, 0.0, 0.0)
-        spot_obj_left.scale = (0.1, 0.1, 0.1)
-        target_collection.objects.link(spot_obj_left)
-        
-        spot_right_data = self.new_ir_light()
-        
-        spot_obj_right = bpy.data.objects.new(name=f"IR_LED_{index:03}_Right", object_data=spot_right_data)
-        spot_obj_right.parent = empty
-        spot_obj_right.location = (0.06, 0.0, 0.0)
-        spot_obj_right.scale = (0.1, 0.1, 0.1)
-        target_collection.objects.link(spot_obj_right)
+            # Create cameras
+            render = context.scene.render
+            view_names = {v.name for v in render.views}
+            
+            cam_left_data = self.new_sensor_camera()
+            cam_left_obj = bpy.data.objects.new(name=f"Camera_{base_name}_{index:03}_Left", 
+                                                object_data=cam_left_data)
+            cam_left_obj.parent = empty
+            cam_left_obj.location = (-0.032, 0.0, 0.0)
+            cam_left_obj.scale = (0.2, 0.2, 0.2)
+            target_collection.objects.link(cam_left_obj)
+            
+            cam_left_name = f"Camera_{base_name}_{index:03}_Left"
+            if cam_left_name not in view_names:
+                cam_left_rv = render.views.new(name=cam_left_name)
+                cam_left_rv.camera_suffix = f"_{base_name}_{index:03}_Left"
+                cam_left_rv.use = True
+                # cam_left_rv.file_suffix = ""
+            
+            cam_right_data = self.new_sensor_camera()
+            cam_right_obj = bpy.data.objects.new(name=f"Camera_{base_name}_{index:03}_Right", 
+                                                object_data=cam_right_data)
+            cam_right_obj.parent = empty
+            cam_right_obj.location = (0.032, 0.0, 0.0)
+            cam_right_obj.scale = (0.2, 0.2, 0.2)
+            target_collection.objects.link(cam_right_obj)
+            
+            cam_right_name = f"Camera_{base_name}_{index:03}_Right"
+            if cam_right_name not in view_names:
+                cam_right_rv = render.views.new(name=cam_right_name)
+                cam_right_rv.camera_suffix = f"_{base_name}_{index:03}_Right"
+                cam_right_rv.use = True
+                # cam_right_rv.file_suffix = ""
+            
+            # Create IR LEDs
+            
+            spot_left_data = self.new_ir_light()
+            
+            spot_obj_left = bpy.data.objects.new(name=f"IR_LED_{index:03}_Left", object_data=spot_left_data)
+            spot_obj_left.parent = empty
+            spot_obj_left.location = (-0.06, 0.0, 0.0)
+            spot_obj_left.scale = (0.1, 0.1, 0.1)
+            target_collection.objects.link(spot_obj_left)
+            
+            spot_right_data = self.new_ir_light()
+            
+            spot_obj_right = bpy.data.objects.new(name=f"IR_LED_{index:03}_Right", object_data=spot_right_data)
+            spot_obj_right.parent = empty
+            spot_obj_right.location = (0.06, 0.0, 0.0)
+            spot_obj_right.scale = (0.1, 0.1, 0.1)
+            target_collection.objects.link(spot_obj_right)
 
-        # Set visibility
-        nl_render = True if context.scene.light_selection == 'RGB' else False
-        spot_obj_left.hide_render = nl_render
-        spot_obj_right.hide_render = nl_render
-        # if context.scene.viewport_checkbox:
-        spot_obj_left.hide_viewport = nl_render
-        spot_obj_right.hide_viewport = nl_render
-        
-        context.view_layer.objects.active = empty
-        empty.select_set(True)
+            # Set visibility
+            nl_render = True if context.scene.light_selection == 'RGB' else False
+            spot_obj_left.hide_render = nl_render
+            spot_obj_right.hide_render = nl_render
+            # if context.scene.viewport_checkbox:
+            spot_obj_left.hide_viewport = nl_render
+            spot_obj_right.hide_viewport = nl_render
+            
+            sensors_view_layer = bpy.context.view_layer.layer_collection.children.get(collection_name)
+            if not sensors_view_layer.exclude:
+                context.view_layer.objects.active = empty
+                empty.select_set(True)
         return {'FINISHED'}
 
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
@@ -544,11 +547,15 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
         armature = context.scene.armature_ref
         context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='POSE')
+        bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         armature_info = {}
         armature_info["name"] = context.scene.pose_name
         armature_info["arm_name"] = armature.name
+        armature_info["bone_col"] = bone_collection.name
         armature_info["joints"] = []
         for bone in armature.pose.bones:
+            if bone.name not in bone_collection.bones:
+                continue
             bone_info = self.get_bone_data(bone)
             armature_info["joints"].append(bone_info)
         bpy.ops.object.mode_set(mode=current_mode)
@@ -565,9 +572,43 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
         if any(entry.get("name") == armature_info.get("name") for entry in data):
-            self.report({'ERROR'}, "This name already exists")
+            self.report({'ERROR'}, "A pose with this name already exists")
             return {'CANCELLED'}
         data.append(armature_info)
+        with open(POSE_PATH, 'w') as f:
+            json.dump(data, f, indent=4)
+        context.scene.pose_name = ""
+        return {'FINISHED'}
+
+class VIEW3D_OT_RenamePose(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.rename_pose"
+    bl_label = "Rename"
+    bl_description="Rename currently selected pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.pose_name) and (context.scene.pose_selection)
+        except: return False
+
+    def execute(self, context):
+        # armature_info = self.get_armature_data(context)
+        data = []
+        if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        if any(entry.get("name") == context.scene.pose_name for entry in data):
+            self.report({'ERROR'}, "A pose with this name already exists")
+            return {'CANCELLED'}
+        for pose in data:
+            if pose['name'] == context.scene.pose_selection:
+                pose['name'] = context.scene.pose_name
+                break
         with open(POSE_PATH, 'w') as f:
             json.dump(data, f, indent=4)
         context.scene.pose_name = ""
@@ -825,6 +866,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             matrix_world = (trans @ rot).inverted()
         else:
             matrix_world = Matrix.Translation(Vector((0,0,0)))
+        # TODO: export data per camera, not per frame
         # Iterate over all frames
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
@@ -845,10 +887,12 @@ class VIEW3D_OT_InfoBox(bpy.types.Operator):
     bl_idname = "view3d.info_box"
     bl_label = ""
     bl_description = "It is recomended to use a rendering script.\n" \
+    "Make sure that the 'Stereoscopy' property is checked and only the necessary cameras are selected.\n" \
     "Rendering the animation inside the Blender GUI will freeze the application"
     
     def execute(self, context):
         self.report({'INFO'}, "It is recomended to use a rendering script. " \
+        "Make sure that the 'Stereoscopy' property is checked and only the necessary cameras are selected.\n" \
         "Rendering the animation inside the Blender GUI will freeze the application.")
         return {'FINISHED'}
 
@@ -1029,12 +1073,12 @@ class VIEW3D_OT_ResetMeshShape(bpy.types.Operator):
     def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
-            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
             for key_right in right_hand_shape_keys:
                 key_right.value = 0.0
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
-            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
             for key_left in left_hand_shape_keys:
                 key_left.value = 0.0
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
@@ -1059,19 +1103,19 @@ class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
         mesh_right = context.scene.deformable_mesh_right_ref
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_right and mesh_left:
-            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
-            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
             if len(right_hand_shape_keys) != len(left_hand_shape_keys):
                 self.report({'ERROR'}, "Meshes have different number of hand shape keys")
             for key_right, key_left in zip(right_hand_shape_keys, left_hand_shape_keys):
                 key_right.value = key_left.value = random.gauss(0.0, context.scene.std_slider)
         else:
             if mesh_right:
-                right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+                right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
                 for key_right in right_hand_shape_keys:
                     key_right.value = random.gauss(0.0, context.scene.std_slider)
             if mesh_left:
-                left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+                left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
                 for key_left in left_hand_shape_keys:
                     key_left.value = random.gauss(0.0, context.scene.std_slider)
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
@@ -1095,12 +1139,12 @@ class VIEW3D_OT_ShapeKeyframe(bpy.types.Operator):
     def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
-            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
             for key in right_hand_shape_keys:
                 key.keyframe_insert(data_path="value")
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
-            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('Shape_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
             for key in left_hand_shape_keys:
                 key.keyframe_insert(data_path="value")
         return{'FINISHED'}
@@ -1362,7 +1406,10 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_pose_name = layout_pose_name_row.split(factor=0.3, align=True)
         layout_pose_name.label(text="Pose Name:")
         layout_pose_name.prop(scene, "pose_name")
-        layout_save_col.operator(VIEW3D_OT_SavePose.bl_idname)
+        layout_sr_row = layout_save_col.row(align=True)
+        layout_save_rename = layout_sr_row.split(factor=0.7, align=True)
+        layout_save_rename.operator(VIEW3D_OT_SavePose.bl_idname)
+        layout_save_rename.operator(VIEW3D_OT_RenamePose.bl_idname)
         layout_rand_row = layout.row(align=True)
         layout_rand = layout_rand_row.split(factor=0.7, align=True)
         layout_rand.operator(VIEW3D_OT_GeneratePose.bl_idname)
@@ -1453,6 +1500,7 @@ classes = (
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_ResetPose,
     VIEW3D_OT_SavePose,
+    VIEW3D_OT_RenamePose,
     VIEW3D_OT_ApplyPose,
     VIEW3D_OT_DeletePose,
     VIEW3D_OT_ArmatureKeyframe,

@@ -95,12 +95,12 @@ def create_mano_mesh(name, vertices, faces):
 
     return obj
 
-def add_shape_keys(obj, shapedirs, base_vertices):
+def add_shape_keys(obj, shapedirs, base_vertices, hand):
     if obj.data.shape_keys is None:
         obj.shape_key_add(name="Basis")
 
     for i, shape in enumerate(shapedirs):
-        key = obj.shape_key_add(name=f"Shape_{i+1}", from_mix=False)
+        key = obj.shape_key_add(name=f"Shape{hand}_{i+1}", from_mix=False)
         key.slider_max = 5.0
         key.slider_min = -5.0
         for v_idx, delta in enumerate(shape):
@@ -179,8 +179,10 @@ def add_constraints_to_armature(armature):
             constraint.max_x = radians(33.0)
             constraint.use_limit_x = True
             constraint.min_y = radians(-25.0)
-            constraint.max_y = radians(25.0)
+            constraint.max_y = radians(60.0)
             constraint.use_limit_y = True
+            constraint.min_z = radians(0.0)
+            constraint.max_z = radians(40.0)
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
@@ -230,9 +232,13 @@ def add_constraints_to_armature(armature):
             elif bone.name == BONE_NAMES[4]:    # if middle
                 constraint.min_y = radians(-5.0)
                 constraint.max_y = radians(15.0)
+                constraint.min_z = radians(-10.0)
+                constraint.max_z = radians(0.0)
             elif bone.name == BONE_NAMES[1]:    # if index
                 constraint.min_y = radians(-20.0)
                 constraint.max_y = radians(15.0)
+                constraint.min_z = radians(-3.0)
+                constraint.max_z = radians(3.0)
             constraint.use_limit_y = True
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
@@ -282,7 +288,7 @@ def load_mano_hand(hand: str):
     mesh = create_mano_mesh(f"MANO_{hand}_Hand_mesh", v_template, faces)
 
     # === Add shape keys ===
-    add_shape_keys(mesh, shapedirs, v_template)
+    add_shape_keys(mesh, shapedirs, v_template, hand)
     
     # === Add armature ===
     arm = create_joint_armature(mesh, hand, joints, BONE_NAMES, BONE_PARENTS, basis)
