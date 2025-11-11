@@ -154,6 +154,7 @@ def load_poses_from_file(self, context):
                 if pose["arm_name"] == context.scene.armature_ref.name and pose["bone_col"] == context.scene.selected_bone_collection:
                     pose_name = pose["name"]
                     items.append((pose_name, pose_name, ""))
+            items.sort()
     return items
 
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
@@ -1260,6 +1261,7 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
     
     def execute(self, context):
         context.scene.use_nodes = True
+        context.view_layer.use_pass_mist = True
         tree = context.scene.node_tree
         if context.scene.override_compositing:
             tree.nodes.clear()
@@ -1317,6 +1319,8 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
             tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
             if context.scene.light_selection == 'RGB':
                 hue_correct.mute = True
+        if context.scene.light_selection != "DEPTH":
+            context.view_layer.use_pass_mist = False
         return{'FINISHED'}
 
 class VIEW3D_PT_Export(bpy.types.Panel):
