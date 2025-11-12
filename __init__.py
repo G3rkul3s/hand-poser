@@ -184,7 +184,7 @@ bpy.types.Scene.light_selection = bpy.props.EnumProperty(
 )
 
 bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
-    name="Hand",
+    name="",
     description="MANO hand",
     items=[
         ('LEFT', "Left", "Left hand"),
@@ -222,7 +222,13 @@ bpy.types.Scene.origin_ref = bpy.props.PointerProperty(
 
 bpy.types.Scene.save_folder = bpy.props.StringProperty(
     name="",
-    description="Path to the folder for rendered images and metadata",
+    description="Output path for rendered images and metadata",
+    subtype='DIR_PATH'
+)
+
+bpy.types.Scene.mano_folder = bpy.props.StringProperty(
+    name="",
+    description="Path to MANO .npz models.\nUse provided 'unpack_MANO.py' script to generate those files",
     subtype='DIR_PATH'
 )
 
@@ -390,7 +396,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         # current_mode = context.mode
         # bpy.ops.object.mode_set(mode='OBJECT')
         collection_name  = "Sensors"
-        if context.scene.sensor_type == 'LEAPSTEREO': # TODO: add sensor casing
+        if context.scene.sensor_type == 'LEAPSTEREO':
             base_name = "LeapSensor"
             index = 1
             while f"{base_name}.{index:03}" in bpy.data.objects:
@@ -872,7 +878,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         # Check for save folder
         folder = context.scene.save_folder
         if not folder:
-            self.report({'ERROR'}, "No save folder selected")
+            self.report({'ERROR'}, "No save folder provided")
             return {'CANCELLED'}
         sensor_collection = bpy.data.collections.get('Sensors')
         export_armatures = context.scene.export_arm
@@ -1249,9 +1255,32 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if not os.path.exists(bpy.path.abspath(context.scene.mano_folder) + f'MANO_{context.scene.hand_selection}.npz'):
+            self.report({'ERROR'}, f"Couldn't find MANO_{context.scene.hand_selection}.npz file")
+            return{'CANCELLED'}
         obj = lm.load_mano_hand(context.scene.hand_selection)
         obj.location = context.scene.cursor.location
         return{'FINISHED'}
+
+"""class VIEW3D_OT_ImportMANO(bpy.types.Operator):
+    bl_idname = "view3d.import_mano"
+    bl_label = "Import MANO"
+    bl_description = "Import MANO hand models"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        if context.scene.mano_folder:
+            mano_right_path = bpy.path.abspath(context.scene.mano_folder) + "MANO_RIGHT.pkl"
+            mano_left_path = bpy.path.abspath(context.scene.mano_folder) + "MANO_LEFT.pkl"
+            if not os.path.exists(mano_right_path):
+                self.report({'WARNING'}, "MANO_RIGHT.pkl file not found")
+            if not os.path.exists(mano_left_path):
+                self.report({'WARNING'}, "MANO_RIGHT.pkl file not found")
+            lm.generate_npz(mano_right_path, mano_left_path)
+        else:
+            self.report({'ERROR'}, "No folder provided")
+            return {'CANCELLED'}
+        return{'FINISHED'}"""
 
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
     bl_idname = "view3d.configure_compositing"
@@ -1393,9 +1422,17 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        layout.prop(scene, "hand_selection")
-        layout.operator(VIEW3D_OT_AddMANOHand.bl_idname, icon='ADD')
-        # TODO: create separate .blend with SMPL-x with my hands ??
+        layout_row = layout.row(align=True)
+        split_mano = layout_row.split(factor=0.35, align=True)
+        split_mano.label(text="MANO Folder:")
+        split_mano.prop(scene, "mano_folder")
+        # layout_col.operator(VIEW3D_OT_ImportMANO.bl_idname)
+        layout_col = layout.column(align=True)
+        layout_row = layout_col.row(align=True)
+        split_hand = layout_row.split(factor=0.35, align=True)
+        split_hand.label(text="Hand:")
+        split_hand.prop(scene, "hand_selection")
+        layout_col.operator(VIEW3D_OT_AddMANOHand.bl_idname, icon='ADD')
 
 class VIEW3D_PT_Pose(bpy.types.Panel):
     """"""
@@ -1512,7 +1549,6 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
         layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
         # TODO: add radio button to consider IR from "natural" sources (sun)
-        # TODO: metall frame + sensor as a separate .blend file ???
 
 classes = (
     VIEW3D_OT_MultiviewRender,
@@ -1521,6 +1557,7 @@ classes = (
     ExportArmatureGroup,
     VIEW3D_OT_AddExportArmature,
     VIEW3D_OT_RemoveExportArmature,
+    # VIEW3D_OT_ImportMANO,
     VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_ResetPose,
