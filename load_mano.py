@@ -63,9 +63,9 @@ BONE_PARENTS = {
     FINGERTIP_NAMES[4]  : BONE_NAMES[9],
 }
 
-def load_mano_model(hand):
+def load_mano_model(hand, mano_path):
     ROOT_DIR = Path(__file__).parent
-    mano_path = ROOT_DIR / 'data' / f"MANO_{hand}.npz"
+    # mano_path = ROOT_DIR / 'data' / f"MANO_{hand}.npz"
     basis_path = ROOT_DIR / 'data' / f"basis_{hand}.txt"
     anatomical_consistent_basis = np.loadtxt(basis_path, dtype=float)
     data = np.load(mano_path)
@@ -274,7 +274,7 @@ def add_constraints_to_armature(armature):
 
     bpy.ops.object.mode_set(mode=current_mode)
 
-def load_mano_hand(hand: str):
+def load_mano_hand(hand: str, mano_path):
     """
     Parameters
     ----------
@@ -282,7 +282,7 @@ def load_mano_hand(hand: str):
         'LEFT' or 'RIGHT' hand
     """
 
-    v_template, shapedirs, faces, joints, weights, basis = load_mano_model(hand)
+    v_template, shapedirs, faces, joints, weights, basis = load_mano_model(hand, mano_path)
 
     # === Create base mesh ===
     mesh = create_mano_mesh(f"MANO_{hand}_Hand_mesh", v_template, faces)

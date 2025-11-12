@@ -1255,10 +1255,11 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if not os.path.exists(bpy.path.abspath(context.scene.mano_folder) + f'MANO_{context.scene.hand_selection}.npz'):
+        mano_path = bpy.path.abspath(context.scene.mano_folder) + f'MANO_{context.scene.hand_selection}.npz'
+        if not os.path.exists(mano_path):
             self.report({'ERROR'}, f"Couldn't find MANO_{context.scene.hand_selection}.npz file")
             return{'CANCELLED'}
-        obj = lm.load_mano_hand(context.scene.hand_selection)
+        obj = lm.load_mano_hand(context.scene.hand_selection, mano_path)
         obj.location = context.scene.cursor.location
         return{'FINISHED'}
 
