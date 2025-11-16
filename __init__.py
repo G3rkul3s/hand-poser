@@ -29,8 +29,8 @@ POSE_PATH = ROOT_DIR / "data/saved_poses.json"
 from importlib import reload
 from . import load_mano as lm
 
-_cached_poses
-_cached_pose_attachments
+_cached_poses = [("NONE", "None", "")]
+_cached_pose_attachments = [("NONE", "None", "")]
 
 def reload_modules():
     # print("reloading")
@@ -199,6 +199,28 @@ def get_visibility_attachments(self, context):
 def get_poses(self, context):
     global _cached_poses
     return _cached_poses
+
+def is_hide_render_keyframed(obj, frame=None):
+    if frame is None:
+        frame = bpy.context.scene.frame_current
+    if not obj.animation_data or not obj.animation_data.action:
+        return False
+
+    action = obj.animation_data.action
+    # Find the FCurve for hide_render
+    fcurve = None
+    for fc in action.fcurves:
+        if fc.data_path == "hide_render":
+            fcurve = fc
+            break
+    if fcurve is None:
+        return False
+    # Check if this frame has a keyframe point
+    for kp in fcurve.keyframe_points:
+        if int(kp.co.x) == frame:
+            return True
+
+    return False
 
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
@@ -904,7 +926,7 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
     """"""
     bl_idname = "view3d.armature_keyframe"
     bl_label = "Keyframe"
-    bl_description = "Set the current pose as a keyframe"
+    bl_description = "Keyframe the given armature"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -928,7 +950,27 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
             bone.keyframe_insert(data_path="location")
             bone.rotation_mode = 'QUATERNION'
             bone.keyframe_insert(data_path="rotation_quaternion")
-            # TODO: keyframe attached objects
+        current_frame = context.scene.frame_current
+        if context.scene.keyframe_attachments == True:
+            for item in _cached_pose_attachments:
+                try:
+                    obj = bpy.data.objects[item[0]]
+                except KeyError:
+                    self.report({'ERROR'}, f'"{item[0]}" object was not found')
+                    continue
+                # if obj is not None:
+                obj.hide_render = False
+                obj.keyframe_insert(data_path="hide_render")
+                context.scene.frame_set(current_frame-1)
+                if not is_hide_render_keyframed(obj):
+                    obj.hide_render = True
+                    obj.keyframe_insert(data_path="hide_render")
+                context.scene.frame_set(current_frame+1)
+                if not is_hide_render_keyframed(obj):
+                    obj.hide_render = True
+                    obj.keyframe_insert(data_path="hide_render")
+                    
+            context.scene.frame_set(current_frame)
 
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
@@ -1659,6 +1701,7 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_apply_pose = layout_apply_pose_row.split(factor=0.7, align=True)
         layout_apply_pose.operator(VIEW3D_OT_ApplyPose.bl_idname)
         layout_apply_pose.operator(VIEW3D_OT_DeletePose.bl_idname)
+
         layout_attach_col = layout.column(align=True)
         layout_attach_row = layout_attach_col.row(align=True)
         layout_attach_list = layout_attach_row.split(factor=0.31, align=True)
@@ -1668,7 +1711,8 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_attach_action_row = layout_attach_col.row(align=True)
         layout_attach_action = layout_attach_action_row.split(factor=0.7, align=True)
         layout_attach_action.operator(VIEW3D_OT_AttachObject.bl_idname)
-        layout_attach_action.operator(VIEW3D_OT_DetachObject.bl_idname) # TODO: create a list of attached objects as enum
+        layout_attach_action.operator(VIEW3D_OT_DetachObject.bl_idname)
+        
         layout_save_col = layout.column(align=True)
         # layout_pose_name_row = layout_save_col.row(align=True)
         # layout_pose_name = layout_pose_name_row.split(factor=0.3, align=True)
