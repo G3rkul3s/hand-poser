@@ -193,7 +193,8 @@
                 ]
             }
         ],
-        "bone_col": "RightHand"
+        "bone_col": "RightHand",
+        "render_with": []
     },
     {
         "name": "Countig One",
@@ -1905,6 +1906,9 @@
                     0.0
                 ]
             }
+        ],
+        "render_with": [
+            "Ball"
         ]
     },
     {

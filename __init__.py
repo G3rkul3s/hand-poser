@@ -1,13 +1,13 @@
 bl_info = {
-    "name": "Hands IR Render",
+    "name": "Hands Pose and Render",
     "author": "Nikita Morev",
     "version": (0, 1),
     "blender": (2, 80, 0),
-    "location": "3D Viewport > Sidebar (N-Panel) > Multi-IR Render",
+    "location": "3D Viewport > Sidebar (N-Panel) > Hands Poser",
     "description": "Adds a custom panel to the 3D Viewport's N-Panel for IR simulated sensor render.",
     "warning": "",
     "doc_url": "",
-    "category": "Hand Poser",
+    "category": "Hands Poser",
 }
 
 import bpy
@@ -24,11 +24,13 @@ from mathutils import Vector, Quaternion, Matrix
 
 from pathlib import Path
 ROOT_DIR = Path(__file__).parent
-POSE_PATH = ROOT_DIR / "saved_poses.json"
+POSE_PATH = ROOT_DIR / "data/saved_poses.json"
 
 from importlib import reload
 from . import load_mano as lm
 
+_cached_poses
+_cached_pose_attachments
 
 def reload_modules():
     # print("reloading")
@@ -143,19 +145,60 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     context.view_layer.objects.active = active_curr
 
 def load_poses_from_file(self, context):
-    items = []
+    global _cached_poses
     if os.path.exists(POSE_PATH):
         with open(POSE_PATH, 'r') as f:
             try:
                 data = json.load(f)
             except json.JSONDecodeError:
-                return {'CANCELLED'}
-            for pose in data:
-                if pose["arm_name"] == context.scene.armature_ref.name and pose["bone_col"] == context.scene.selected_bone_collection:
-                    pose_name = pose["name"]
-                    items.append((pose_name, pose_name, ""))
-            items.sort()
-    return items
+                _cached_poses = [("NONE", "None", "")]
+                return
+            
+            poses = []
+            poses.extend([(pose["name"], pose["name"], "") for pose in data 
+                                if pose["arm_name"] == context.scene.armature_ref.name 
+                                and pose["bone_col"] == context.scene.selected_bone_collection])
+            _cached_poses = poses if len(poses) > 0 else [("NONE", "None", "")]
+            _cached_poses.sort()
+    else:
+        self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
+        _cached_poses = [("NONE", "None", "")]
+        return
+
+def load_vis_att_from_file(self, context):
+    global _cached_pose_attachments
+    if context.scene.pose_selection == 'NONE':
+        _cached_pose_attachments = [("NONE", "None", "")]
+        return
+    data = []
+    if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    _cached_pose_attachments = [("NONE", "None", "")]
+                    return
+    else:
+        # self.report({'ERROR'}, "A file with saved poses is missing")
+        _cached_pose_attachments = [("NONE", "None", "")]
+        return
+    for pose in data:
+            if pose['name'] == context.scene.pose_selection:
+                objects = pose.get('render_with')
+                if objects is None or len(objects) == 0:
+                    _cached_pose_attachments = [("NONE", "None", "")]
+                else:
+                    _cached_pose_attachments = []
+                    _cached_pose_attachments.extend([(obj, obj, "") for obj in objects])
+                break
+
+def get_visibility_attachments(self, context):
+    global _cached_pose_attachments
+    return _cached_pose_attachments
+
+def get_poses(self, context):
+    global _cached_poses
+    return _cached_poses
 
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
@@ -205,13 +248,21 @@ bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
     name="",
-    description="Predefined pose", # TODO: decide if .\nIt is armature name sensetive
-    items=load_poses_from_file,
+    description="Predefined pose",
+    items=get_poses,
+    # default=1,
+    update=load_vis_att_from_file,
 )
 
 bpy.types.Scene.pose_name = bpy.props.StringProperty(
     name="",
     description="Give a name to the pose",
+)
+
+bpy.types.Scene.pose_attachment = bpy.props.PointerProperty(
+    name="",
+    description = "An object that should be rendered with the current pose",
+    type=bpy.types.Object,
 )
 
 bpy.types.Scene.origin_ref = bpy.props.PointerProperty(
@@ -302,6 +353,7 @@ bpy.types.Scene.selected_bone_collection = bpy.props.EnumProperty(
     name="",
     description="Bone collection",
     items=pose_get_bone_collections,
+    update=load_poses_from_file,
 )
 
 bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
@@ -325,6 +377,18 @@ bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
     default = "4",
 )"""
 
+bpy.types.Scene.keyframe_attachments = bpy.props.BoolProperty(
+    name="Keyframe with the current attachments",
+    description="Keyframe visibility of the current attachments",
+    default=False,
+)
+
+bpy.types.Scene.list_attachments = bpy.props.EnumProperty(
+    name="",
+    description="Objects that will render with the selected pose after keyframing",
+    items=get_visibility_attachments,
+)
+
 class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
     """"""
     bl_idname = "view3d.muliview_render"
@@ -342,23 +406,50 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         if not folder:
             self.report({'ERROR'}, "Save folder not selected")
             return {'CANCELLED'}
+        '''
         # Set up multiview render
         # NOTE: disabled for now
-#         context.scene.render.use_multiview = True
-#         sensor_names = {obj.name for obj in sensor_collection.objects if obj.type == 'CAMERA'}
-#         views = context.scene.render.views
-#         for v in list(views):
-#             if v.name == 'left' or v.name == 'right':
-#                 v.use = False
-#             elif v.name not in sensor_names:
-# #                views.remove(v)
-#                 v.use = False
-#             # else:
-#             #     v.use = True
+        context.scene.render.use_multiview = True
+        sensor_names = {obj.name for obj in sensor_collection.objects if obj.type == 'CAMERA'}
+        views = context.scene.render.views
+        for v in list(views):
+            if v.name == 'left' or v.name == 'right':
+                v.use = False
+            elif v.name not in sensor_names:
+            #    views.remove(v)
+                v.use = False
+            # else:
+            #     v.use = True
+        '''
         # Invoke render
-        context.scene.render.filepath = bpy.path.abspath(folder + "Frame_")
-        # TODO: turn on and off light for each sensor
-        bpy.ops.render.render(animation=True)
+        cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA']
+        ir_render = context.scene.light_selection == 'IR'
+        lights = []
+        if ir_render:
+            lights = [obj for obj in sensor_collection.objects if obj.type == 'LIGHT']
+        # Iterate over all frames
+        current_frame = context.scene.frame_current
+        for i in range(context.scene.frame_start, context.scene.frame_end+1):
+            context.scene.frame_set(i)
+            # Iterate over all cameras
+            for camera in cameras:
+                # Turn on the ir-lights only for the current sensor
+                if ir_render:
+                    sensor = camera.parent
+                    for light in lights:
+                        if light in sensor.children:
+                            light.hide_render = False
+                        else:
+                            light.hide_render = True
+                context.scene.camera = camera
+                context.scene.render.filepath = bpy.path.abspath(folder + f"Frame_{i:06}_" + camera.name)
+                bpy.ops.render.render(write_still=True)
+        for light in lights:
+            light.hide_render = False
+        context.scene.frame_set(current_frame)
+
+        # context.scene.render.filepath = bpy.path.abspath(folder + "Frame_")
+        # bpy.ops.render.render(animation=True)
         self.report({'INFO'}, "Render successfully saved")
         return {'FINISHED'}
 
@@ -423,7 +514,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             # view_names = {v.name for v in render.views}
             
             cam_left_data = self.new_sensor_camera()
-            cam_left_obj = bpy.data.objects.new(name=f"Camera_{base_name}_{index:03}_Left", 
+            cam_left_obj = bpy.data.objects.new(name=f"{base_name}_{index:03}_Camera_Left", 
                                                 object_data=cam_left_data)
             cam_left_obj.parent = empty
             cam_left_obj.location = (-0.032, 0.0, 0.0)
@@ -438,7 +529,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             #     # cam_left_rv.file_suffix = ""
             
             cam_right_data = self.new_sensor_camera()
-            cam_right_obj = bpy.data.objects.new(name=f"Camera_{base_name}_{index:03}_Right", 
+            cam_right_obj = bpy.data.objects.new(name=f"{base_name}_{index:03}_Camera_Right", 
                                                 object_data=cam_right_data)
             cam_right_obj.parent = empty
             cam_right_obj.location = (0.032, 0.0, 0.0)
@@ -458,7 +549,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             spot_obj_left = bpy.data.objects.new(name=f"IR_LED_{index:03}_Left", object_data=spot_left_data)
             spot_obj_left.parent = empty
             spot_obj_left.location = (-0.05, 0.0, 0.0)
-            spot_obj_left.scale = (0.1, 0.1, 0.1)
+            spot_obj_left.scale = (0.01, 0.01, 0.01)
             target_collection.objects.link(spot_obj_left)
             
             spot_right_data = self.new_ir_light()
@@ -466,7 +557,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             spot_obj_right = bpy.data.objects.new(name=f"IR_LED_{index:03}_Right", object_data=spot_right_data)
             spot_obj_right.parent = empty
             spot_obj_right.location = (0.05, 0.0, 0.0)
-            spot_obj_right.scale = (0.1, 0.1, 0.1)
+            spot_obj_right.scale = (0.01, 0.01, 0.01)
             target_collection.objects.link(spot_obj_right)
 
             # Set visibility
@@ -537,6 +628,93 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         armature.hide_set(curr_hide)
         return {'FINISHED'}
 
+class VIEW3D_OT_AttachObject(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.attach_object"
+    bl_label = "Attach Visibility"
+    bl_description="Attach the object's visibility to the selected pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.pose_attachment) and (context.scene.pose_selection != 'NONE')
+        except: return False
+
+    def execute(self, context):
+        data = []
+        obj = context.scene.pose_attachment.name
+        if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved poses is missing")
+            return {'CANCELLED'}
+        for pose in data:
+            if pose['name'] == context.scene.pose_selection:
+                if pose.get('render_with') is None:
+                    pose['render_with'] = []
+                if not obj in pose['render_with']:
+                    pose['render_with'].append(obj)
+                break
+        with open(POSE_PATH, 'w') as f:
+            json.dump(data, f, indent=4)
+        load_vis_att_from_file(self, context)
+        context.scene.pose_attachment = None
+        return {'FINISHED'}
+
+class VIEW3D_OT_DetachObject(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.detach_object"
+    bl_label = "Detach"
+    bl_description="Detach the object's visibility from the selected pose"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.list_attachments != "NONE")
+        except: return False
+
+    def execute(self, context):
+        data = []
+        obj = context.scene.list_attachments
+        if os.path.exists(POSE_PATH):
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved poses is missing")
+            return {'CANCELLED'}
+        for pose in data:
+            if pose['name'] == context.scene.pose_selection:
+                if pose.get('render_with') is None:
+                    break
+                if obj in pose['render_with']:
+                    pose['render_with'] = [att for att in pose['render_with'] if att != obj]
+                break
+        with open(POSE_PATH, 'w') as f:
+            json.dump(data, f, indent=4)
+        load_vis_att_from_file(self, context)
+        return {'FINISHED'}
+
+class VIEW3D_OT_LoadPoses(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.reload_poses"
+    bl_label = "Load Poses"
+    bl_description="Load saved/predefined poses"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        load_poses_from_file(self, context)
+        load_vis_att_from_file(self, context)
+        return {'FINISHED'}
+
 class VIEW3D_OT_SavePose(bpy.types.Operator):
     """"""
     bl_idname = "view3d.save_pose"
@@ -580,6 +758,7 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
 
     def execute(self, context):
         armature_info = self.get_armature_data(context)
+        armature_info['render_with'] = []
         data = []
         if os.path.exists(POSE_PATH):
             with open(POSE_PATH, 'r') as f:
@@ -596,6 +775,7 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
         with open(POSE_PATH, 'w') as f:
             json.dump(data, f, indent=4)
         context.scene.pose_name = ""
+        load_poses_from_file(self, context)
         return {'FINISHED'}
 
 class VIEW3D_OT_RenamePose(bpy.types.Operator):
@@ -608,7 +788,7 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            return (context.scene.pose_name) and (context.scene.pose_selection)
+            return (context.scene.pose_name) and (context.scene.pose_selection != "NONE")
         except: return False
 
     def execute(self, context):
@@ -620,6 +800,9 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved poses is missing")
+            return {'CANCELLED'}
         if any(entry.get("name") == context.scene.pose_name 
                and entry.get("arm_name") == context.scene.armature_ref.name 
                and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
@@ -632,6 +815,7 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
         with open(POSE_PATH, 'w') as f:
             json.dump(data, f, indent=4)
         context.scene.pose_name = ""
+        load_poses_from_file(self, context)
         return {'FINISHED'}
 
 class VIEW3D_OT_ApplyPose(bpy.types.Operator):
@@ -644,7 +828,7 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            return (context.scene.armature_ref) and (context.scene.pose_selection)
+            return (context.scene.armature_ref) and (context.scene.pose_selection != "NONE")
         except: return False
 
     def execute(self, context):
@@ -655,6 +839,9 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved poses is missing")
+            return {'CANCELLED'}
         armature = context.scene.armature_ref
         pose = context.scene.pose_selection
         # Search for the pose
@@ -689,7 +876,7 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            return (context.scene.pose_selection)
+            return (context.scene.pose_selection != "NONE")
         except: return False
 
     def execute(self, context):
@@ -700,6 +887,9 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved poses is missing")
+            return {'CANCELLED'}
         # Exclude the pose
         new_data = [entry for entry in data if not (entry.get("name") == context.scene.pose_selection
                                                     and entry.get("arm_name") == context.scene.armature_ref.name 
@@ -707,6 +897,7 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
         # Save updated list back
         with open(POSE_PATH, 'w') as f:
             json.dump(new_data, f, indent=4)
+        load_poses_from_file(self, context)
         return {'FINISHED'}
 
 class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
@@ -724,7 +915,7 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
 
     def execute(self, context):
         armature = context.scene.armature_ref
-        bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
+        # bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         active_curr = context.view_layer.objects.active
         curr_hide = armature.hide_get()
         armature.hide_set(False)
@@ -732,11 +923,13 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
         current_mode = bpy.context.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
-            if bone_collection and bone.name not in bone_collection.bones:
-                continue
+            # if bone_collection and bone.name not in bone_collection.bones:
+            #     continue
             bone.keyframe_insert(data_path="location")
             bone.rotation_mode = 'QUATERNION'
             bone.keyframe_insert(data_path="rotation_quaternion")
+            # TODO: keyframe attached objects
+
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
@@ -825,6 +1018,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     bl_description="Export sensors and joint positions for each frame"
 
     def get_sensors_data(self, context, sensor_collection, matrix_world):
+        # TODO: export !camera! info
         sensors_data = []
         for obj in sensor_collection.objects:
             if obj.type == 'EMPTY':
@@ -890,7 +1084,6 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             matrix_world = (trans @ rot).inverted()
         else:
             matrix_world = Matrix.Translation(Vector((0,0,0)))
-        # TODO: export data per camera, not per frame
         # Iterate over all frames
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
@@ -900,7 +1093,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             # Get armature(s) metadata
             armature_data = self.get_armature_data(context, export_armatures, matrix_world) if len(export_armatures) > 0 else []
             # Save metadata
-            export_filepath = bpy.path.abspath(folder) + f"Frame_{i:03}_metadata.json"
+            export_filepath = bpy.path.abspath(folder) + f"Frame_{i:06}_metadata.json"
             with open(export_filepath, 'w') as f:
                 json.dump({"Sensor data":sensors_data, "Armature data":armature_data}, f, indent=4)
         context.scene.frame_set(current_frame)
@@ -1423,6 +1616,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
+        # TODO: add a button to load import script
         layout_row = layout.row(align=True)
         split_mano = layout_row.split(factor=0.35, align=True)
         split_mano.label(text="MANO Folder:")
@@ -1455,6 +1649,7 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_bone = layout_row_bone.split(factor=0.3, align=True)
         layout_bone.label(text="Bones:")
         layout_bone.prop(scene, "selected_bone_collection", icon='GROUP_BONE')
+        layout.operator(VIEW3D_OT_LoadPoses.bl_idname)
         layout_pose_col = layout.column(align=True)
         layout_pose_row = layout_pose_col.row(align=True)
         layout_pose = layout_pose_row.split(factor=0.3, align=True)
@@ -1464,11 +1659,21 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_apply_pose = layout_apply_pose_row.split(factor=0.7, align=True)
         layout_apply_pose.operator(VIEW3D_OT_ApplyPose.bl_idname)
         layout_apply_pose.operator(VIEW3D_OT_DeletePose.bl_idname)
+        layout_attach_col = layout.column(align=True)
+        layout_attach_row = layout_attach_col.row(align=True)
+        layout_attach_list = layout_attach_row.split(factor=0.31, align=True)
+        layout_attach_list.label(text="Attachments:")
+        layout_attach_list.prop(scene, "list_attachments")
+        layout_attach_col.prop(scene, "pose_attachment")
+        layout_attach_action_row = layout_attach_col.row(align=True)
+        layout_attach_action = layout_attach_action_row.split(factor=0.7, align=True)
+        layout_attach_action.operator(VIEW3D_OT_AttachObject.bl_idname)
+        layout_attach_action.operator(VIEW3D_OT_DetachObject.bl_idname) # TODO: create a list of attached objects as enum
         layout_save_col = layout.column(align=True)
-        layout_pose_name_row = layout_save_col.row(align=True)
-        layout_pose_name = layout_pose_name_row.split(factor=0.3, align=True)
-        layout_pose_name.label(text="Pose Name:")
-        layout_pose_name.prop(scene, "pose_name")
+        # layout_pose_name_row = layout_save_col.row(align=True)
+        # layout_pose_name = layout_pose_name_row.split(factor=0.3, align=True)
+        # layout_pose_name.label(text="Pose Name:")
+        layout_save_col.prop(scene, "pose_name", placeholder="Pose Name")
         layout_sr_row = layout_save_col.row(align=True)
         layout_save_rename = layout_sr_row.split(factor=0.7, align=True)
         layout_save_rename.operator(VIEW3D_OT_SavePose.bl_idname)
@@ -1477,7 +1682,9 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_rand = layout_rand_row.split(factor=0.7, align=True)
         layout_rand.operator(VIEW3D_OT_GeneratePose.bl_idname)
         layout_rand.operator(VIEW3D_OT_ResetPose.bl_idname)
-        layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
+        layout_key = layout.column(align=True)
+        layout_key.prop(scene, "keyframe_attachments")
+        layout_key.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
 
 class VIEW3D_PT_Shape(bpy.types.Panel):
     """"""
@@ -1560,8 +1767,11 @@ classes = (
     VIEW3D_OT_RemoveExportArmature,
     # VIEW3D_OT_ImportMANO,
     VIEW3D_OT_AddMANOHand,
+    VIEW3D_OT_AttachObject,
+    VIEW3D_OT_DetachObject,
     VIEW3D_OT_GeneratePose,
     VIEW3D_OT_ResetPose,
+    VIEW3D_OT_LoadPoses,
     VIEW3D_OT_SavePose,
     VIEW3D_OT_RenamePose,
     VIEW3D_OT_ApplyPose,
@@ -1585,16 +1795,20 @@ classes = (
 )
 
 def register():
+    global _cached_poses
+    global _cached_pose_attachments
+    _cached_poses = [("NONE", "None", "")]
+    _cached_pose_attachments = [("NONE", "None", "")]
     reload_modules()
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.Scene.export_arm = bpy.props.CollectionProperty(type=ExportArmatureGroup)
-    print("IR Style Render Registered (N-Panel)")
+    print("Registered")
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    print("IR Style Render Unregistered (N-Panel)")
+    print("Unregistered")
 
 if __name__ == "__main__":
     register()
