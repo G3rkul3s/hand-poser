@@ -4,7 +4,7 @@ bl_info = {
     "version": (0, 1),
     "blender": (2, 80, 0),
     "location": "3D Viewport > Sidebar (N-Panel) > Hands Poser",
-    "description": "Adds a custom panel to the 3D Viewport's N-Panel for IR simulated sensor render.",
+    "description": "", # TODO: add description
     "warning": "",
     "doc_url": "",
     "category": "Hands Poser",
@@ -16,7 +16,7 @@ import numpy as np
 import math
 import json
 # import re
-import os
+# import os
 # import sys
 # import typing
 from math import radians
@@ -146,14 +146,13 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
 
 def load_poses_from_file(self, context):
     global _cached_poses
-    if os.path.exists(POSE_PATH):
+    if POSE_PATH.exists():
         with open(POSE_PATH, 'r') as f:
             try:
                 data = json.load(f)
             except json.JSONDecodeError:
                 _cached_poses = [("NONE", "None", "")]
                 return
-            
             poses = []
             poses.extend([(pose["name"], pose["name"], "") for pose in data 
                                 if pose["arm_name"] == context.scene.armature_ref.name 
@@ -161,9 +160,10 @@ def load_poses_from_file(self, context):
             _cached_poses = poses if len(poses) > 0 else [("NONE", "None", "")]
             _cached_poses.sort()
     else:
-        self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
         _cached_poses = [("NONE", "None", "")]
+        self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
         return
+    return
 
 def load_vis_att_from_file(self, context):
     global _cached_pose_attachments
@@ -171,7 +171,7 @@ def load_vis_att_from_file(self, context):
         _cached_pose_attachments = [("NONE", "None", "")]
         return
     data = []
-    if os.path.exists(POSE_PATH):
+    if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -424,10 +424,21 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             self.report({'ERROR'}, "Sensors collection not found")
             return {'CANCELLED'}
         # Check for save folder
-        folder = context.scene.save_folder
-        if not folder:
+        save_folder = context.scene.save_folder
+        if not save_folder:
             self.report({'ERROR'}, "Save folder not selected")
             return {'CANCELLED'}
+        # Create folder where rendered images are saved if it doesn't exists
+        render_type = context.scene.light_selection
+        if render_type == 'RGB':
+            rgb_path = Path(bpy.path.abspath(save_folder), "rgb")
+            rgb_path.mkdir(exist_ok=True)
+        elif render_type == 'IR':
+            ir_path = Path(bpy.path.abspath(save_folder), "infrared")
+            ir_path.mkdir(exist_ok=True)
+        elif render_type == 'DEPTH':
+            depth_path = Path(bpy.path.abspath(save_folder), "depth")
+            depth_path.mkdir(exist_ok=True)
         '''
         # Set up multiview render
         # NOTE: disabled for now
@@ -445,7 +456,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         '''
         # Invoke render
         cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA']
-        ir_render = context.scene.light_selection == 'IR'
+        ir_render = render_type == 'IR'
         lights = []
         if ir_render:
             lights = [obj for obj in sensor_collection.objects if obj.type == 'LIGHT']
@@ -464,7 +475,12 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                         else:
                             light.hide_render = True
                 context.scene.camera = camera
-                context.scene.render.filepath = bpy.path.abspath(folder + f"Frame_{i:06}_" + camera.name)
+                if render_type == 'RGB':
+                    context.scene.render.filepath = str(Path(rgb_path, f"Frame_{i:06}_" + camera.name))
+                elif render_type == 'IR':
+                    context.scene.render.filepath = str(Path(ir_path, f"Frame_{i:06}_" + camera.name))
+                elif render_type == 'DEPTH':
+                    context.scene.render.filepath = str(Path(depth_path, f"Frame_{i:06}_" + camera.name))
                 bpy.ops.render.render(write_still=True)
         for light in lights:
             light.hide_render = False
@@ -484,17 +500,24 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
     
     def new_sensor_camera(self, cam_name="Camera"):
         cam_data = bpy.data.cameras.new(name=cam_name)
+        # == version 1 ==
         # cam_data.type = 'PANO'
         # cam_data.panorama_type = 'FISHEYE_EQUISOLID'
         # cam_data.fisheye_lens = 1.50
         # cam_data.fisheye_fov = radians(170.0)
+        # == version 2 ==
+        # cam_data.type = 'PERSP'
+        # cam_data.lens = 2.1
+        # cam_data.sensor_fit = 'AUTO'
+        # # cam_data.sensor_width = 4
+        # cam_data.sensor_width = 14
+        # == version 3 ==
         cam_data.type = 'PERSP'
-        cam_data.lens = 2.1
+        cam_data.lens = 6.0
+        cam_data.sensor_fit = 'AUTO'
+
         cam_data.clip_start = 0.001
         cam_data.clip_end = 50
-        cam_data.sensor_fit = 'AUTO'
-        # cam_data.sensor_width = 4
-        cam_data.sensor_width = 14
         cam_data.display_size = 0.3
         return cam_data
 
@@ -666,7 +689,7 @@ class VIEW3D_OT_AttachObject(bpy.types.Operator):
     def execute(self, context):
         data = []
         obj = context.scene.pose_attachment.name
-        if os.path.exists(POSE_PATH):
+        if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -704,7 +727,7 @@ class VIEW3D_OT_DetachObject(bpy.types.Operator):
     def execute(self, context):
         data = []
         obj = context.scene.list_attachments
-        if os.path.exists(POSE_PATH):
+        if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -727,7 +750,7 @@ class VIEW3D_OT_DetachObject(bpy.types.Operator):
 
 class VIEW3D_OT_LoadPoses(bpy.types.Operator):
     """"""
-    bl_idname = "view3d.reload_poses"
+    bl_idname = "view3d.load_poses"
     bl_label = "Load Poses"
     bl_description="Load saved/predefined poses"
     bl_options = {'REGISTER', 'UNDO'}
@@ -782,7 +805,7 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
         armature_info = self.get_armature_data(context)
         armature_info['render_with'] = []
         data = []
-        if os.path.exists(POSE_PATH):
+        if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -816,7 +839,7 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
     def execute(self, context):
         # armature_info = self.get_armature_data(context)
         data = []
-        if os.path.exists(POSE_PATH):
+        if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -855,7 +878,7 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
 
     def execute(self, context):
         data = []
-        if os.path.exists(POSE_PATH):
+        if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -903,7 +926,7 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
 
     def execute(self, context):
         data = []
-        if os.path.exists(POSE_PATH):
+        if POSE_PATH.exists():
             with open(POSE_PATH, 'r') as f:
                 try:
                     data = json.load(f)
@@ -953,11 +976,12 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
         current_frame = context.scene.frame_current
         if context.scene.keyframe_attachments == True:
             for item in _cached_pose_attachments:
-                try:
-                    obj = bpy.data.objects[item[0]]
-                except KeyError:
+                if item[0] == 'NONE':
+                    continue
+                if not item[0] in bpy.data.objects:
                     self.report({'ERROR'}, f'"{item[0]}" object was not found')
                     continue
+                obj = bpy.data.objects[item[0]]
                 # if obj is not None:
                 obj.hide_render = False
                 obj.keyframe_insert(data_path="hide_render")
@@ -1041,7 +1065,7 @@ class VIEW3D_OT_AddExportArmature(bpy.types.Operator):
         return {'FINISHED'}
 
 class VIEW3D_OT_RemoveExportArmature(bpy.types.Operator):
-    bl_idname = "view3d.remove_pointer_item"
+    bl_idname = "view3d.remove_export_item"
     bl_label = ""
     bl_description = "Remove an armature from export"
 
@@ -1053,6 +1077,113 @@ class VIEW3D_OT_RemoveExportArmature(bpy.types.Operator):
             scene.export_arm.remove(self.index)
         return {'FINISHED'}
 
+class PoseArmatureGroup(bpy.types.PropertyGroup):
+    arm_ref: bpy.props.PointerProperty(
+        name="",
+        type=bpy.types.Object,
+        description="Pick an armature to sample poses from",
+        poll=lambda self, obj: obj.type == 'ARMATURE',
+    ) # type: ignore
+
+    bone_col: bpy.props.EnumProperty(
+        name="",
+        description="Bone collection",
+        items=export_get_bone_colllections,
+    ) # type: ignore
+
+    group: bpy.props.IntProperty(
+        name="",
+        description="",
+        default=1,
+        min=1,
+        max=100,
+        soft_max=10,
+    ) # type: ignore
+
+class VIEW3D_OT_AddPoseArmature(bpy.types.Operator):
+    bl_idname = "view3d.add_pose_armature"
+    bl_label = "Add"
+    bl_description = "Add an armature for pose generation"
+
+    def execute(self, context):
+        scene = context.scene
+        scene.pose_arm.add()
+        return {'FINISHED'}
+
+class VIEW3D_OT_RemovePoseArmature(bpy.types.Operator):
+    bl_idname = "view3d.remove_pose_item"
+    bl_label = ""
+    bl_description = "Remove an armature from pose generation"
+
+    index: bpy.props.IntProperty() # type: ignore
+
+    def execute(self, context):
+        scene = context.scene
+        if 0 <= self.index < len(scene.pose_arm):
+            scene.pose_arm.remove(self.index)
+        return {'FINISHED'}
+
+class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.generate_frames"
+    bl_label = "Generate Frames"
+    bl_description=""
+
+    i: int
+
+    def keyframe(self, context, pose_group, index=0, current_poses=None):
+        if current_poses is None:
+            current_poses = []
+
+        # If we reached the end of the group
+        if index == len(pose_group):
+            for arm, pose in current_poses:
+                context.scene.armature_ref = arm.arm_ref
+                context.scene.selected_bone_collection = arm.bone_col
+                context.scene.pose_selection = pose
+                context.scene.frame_set(self.i)
+                self.i += 1
+                bpy.ops.view3d.apply_pose('EXEC_DEFAULT')
+                bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
+            return
+        
+        # Recursively iterate over all poses to get their combinations
+        (arm, poses), = pose_group[index].items()
+        for pose in poses:
+            self.keyframe(context, pose_group, index + 1, current_poses + [(arm, pose)])
+
+    def execute(self, context):
+        if POSE_PATH.exists():
+            with open(POSE_PATH, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
+            return {'CANCELLED'}
+
+        pose_arms = context.scene.pose_arm
+        arm_groups = {}
+        # Sort by groups
+        if len(pose_arms) > 0:
+            for pose_arm in pose_arms:
+                poses = [pose["name"] for pose in data
+                    if pose["arm_name"] == pose_arm.arm_ref.name
+                    and pose["bone_col"] == pose_arm.bone_col]
+                if pose_arm.group in arm_groups:
+                    arm_groups[pose_arm.group].append({pose_arm: poses})
+                else:
+                    arm_groups[pose_arm.group] = [{pose_arm: poses}]
+        
+        current_frame = context.scene.frame_current
+        self.i = current_frame
+
+        for arm_group in arm_groups:
+            self.keyframe(context, arm_groups[arm_group])
+        
+        return {'FINISHED'}
+
 class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     """"""
     bl_idname = "view3d.export_metadata"
@@ -1060,28 +1191,27 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     bl_description="Export sensors and joint positions for each frame"
 
     def get_sensors_data(self, context, sensor_collection, matrix_world):
-        # TODO: export !camera! info
+        # TODO: detect hand visibility, bool "{armature bone_col} in frame"
         sensors_data = []
         for obj in sensor_collection.objects:
-            if obj.type == 'EMPTY':
-                location = obj.location
-                if context.scene.origin_ref:
-                    location = matrix_world @ obj.location
+            if obj.type == 'CAMERA':
+                location = matrix_world @ obj.matrix_world.to_translation()
+                rotation = obj.matrix_world.to_quaternion()
                 sens_info = {
                     "name": obj.name,
                     "location": list(location),
-                    "rotation_quaternion": list(obj.rotation_quaternion),
+                    "rotation_quaternion": list(rotation),
                 }
                 sensors_data.append(sens_info)
         return sensors_data
 
     def get_bone_data(self, bone, matrix_world, armature_world):
-        head = matrix_world @ (armature_world @ bone.head)
+        location = matrix_world @ (armature_world @ bone.head)
         bone_info = {}
         bone_info["name"] = bone.name
-        bone_info["location"] = list(head)
+        bone_info["location"] = list(location)
         bone.rotation_mode = 'QUATERNION'
-        bone_info["rotation_quaternion"] = list(bone.rotation_quaternion)
+        bone_info["rotation_quaternion"] = list((armature_world @ bone.matrix).to_quaternion())
         return bone_info
 
     def get_armature_data(self, context, export_armatures, matrix_world):
@@ -1112,10 +1242,14 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
 
     def execute(self, context):
         # Check for save folder
-        folder = context.scene.save_folder
-        if not folder:
+        save_folder = context.scene.save_folder
+        if not save_folder:
             self.report({'ERROR'}, "No save folder provided")
             return {'CANCELLED'}
+        # Create metadata folder if it doesn't exists
+        meta_path = Path(bpy.path.abspath(save_folder), "metadata")
+        meta_path.mkdir(exist_ok=True)
+
         sensor_collection = bpy.data.collections.get('Sensors')
         export_armatures = context.scene.export_arm
         # Get the reference frame
@@ -1130,12 +1264,13 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
             context.scene.frame_set(i)
+            # TODO: export mano shape parameters
             # Get sensor(s) metadata
             sensors_data = self.get_sensors_data(context, sensor_collection, matrix_world) if sensor_collection else []
             # Get armature(s) metadata
             armature_data = self.get_armature_data(context, export_armatures, matrix_world) if len(export_armatures) > 0 else []
             # Save metadata
-            export_filepath = bpy.path.abspath(folder) + f"Frame_{i:06}_metadata.json"
+            export_filepath = Path(meta_path, f"Frame_{i:06}.json")
             with open(export_filepath, 'w') as f:
                 json.dump({"Sensor data":sensors_data, "Armature data":armature_data}, f, indent=4)
         context.scene.frame_set(current_frame)
@@ -1452,7 +1587,11 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                     mod.show_viewport = mod_show_list[i]
             # Cash the regressor and the template
             if self.J_regressor_right is None:
-                self.J_regressor_right = lm.load_regressor('RIGHT')
+                mano_path = Path(bpy.path.abspath(context.scene.mano_folder) + "MANO_RIGHT.npz")
+                if not mano_path.exists():
+                    self.report({'ERROR'}, f"Couldn't find MANO_RIGHT.npz file.\nPlease provide a valid path in the MANO Hand panel")
+                    return{'CANCELLED'}
+                self.J_regressor_right = lm.load_regressor(str(mano_path))
             update_joint_positions(mesh_right.parent, self.J_regressor_right, vertices, context)
         
         mesh_left = context.scene.deformable_mesh_left_ref
@@ -1478,7 +1617,11 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                     mod.show_viewport = mod_show_list[i]
             # Cash the regressor and the template
             if self.J_regressor_left is None:
-                self.J_regressor_left = lm.load_regressor('LEFT')
+                mano_path = Path(bpy.path.abspath(context.scene.mano_folder) + "MANO_LEFT.npz")
+                if not mano_path.exists():
+                    self.report({'ERROR'}, f"Couldn't find MANO_LEFT.npz file.\nPlease provide a valid path in the MANO Hand panel")
+                    return{'CANCELLED'}
+                self.J_regressor_right = lm.load_regressor(str(mano_path))
             update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
         
         return{'FINISHED'}
@@ -1490,8 +1633,8 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        mano_path = bpy.path.abspath(context.scene.mano_folder) + f'MANO_{context.scene.hand_selection}.npz'
-        if not os.path.exists(mano_path):
+        mano_path = Path(bpy.path.abspath(context.scene.mano_folder) + f'MANO_{context.scene.hand_selection}.npz')
+        if not mano_path.exists():
             self.report({'ERROR'}, f"Couldn't find MANO_{context.scene.hand_selection}.npz file")
             return{'CANCELLED'}
         obj = lm.load_mano_hand(context.scene.hand_selection, mano_path)
@@ -1590,33 +1733,41 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
 
 class VIEW3D_PT_Export(bpy.types.Panel):
     """"""
-    bl_label = "Export / Render"
+    bl_label = "Export Settings"
     bl_idname = "VIEW3D_PT_Export"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Multi-IR Render'
+    bl_category = 'Hand Poser'
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         
         layout_row = layout.row(align=True)
+        split_save = layout_row.split(factor=0.3, align=True)
+        split_save.label(text="Save Folder:")
+        split_save.prop(scene, "save_folder")
+
+        layout.separator(type='LINE')
+        layout_row = layout.row(align=True)
         split_light = layout_row.split(factor=0.3, align=True)
         split_light.label(text="Image:")
         split_light.prop(scene, "light_selection")
-        layout_row = layout.row(align=True)
-        split_origin = layout_row.split(factor=0.3, align=True)
-        split_origin.label(text="World Origin:")
-        split_origin.prop(scene, "origin_ref", icon="ORIENTATION_GLOBAL")
         layout_row = layout.row(align=True)
         split_compositing = layout_row.split(factor=0.7, align=True)
         split_compositing.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
         split_compositing.prop(scene, "override_compositing")
         
         layout.separator(type='LINE')
-        layout.label(text="Armatures to export:")
+        layout_row = layout.row(align=True)
+        split_origin = layout_row.split(factor=0.3, align=True)
+        split_origin.label(text="World Origin:")
+        split_origin.prop(scene, "origin_ref", icon="ORIENTATION_PARENT")
+
+        layout_col = layout.column(align=True)
+        layout_col.label(text="Armatures to export:")
         for i, item in enumerate(scene.export_arm):
-            box = layout.box()
+            box = layout_col.box()
             box_row = box.row(align=False)
             box_col = box_row.column(align=True)
             box_row_arm = box_col.row(align=True)
@@ -1628,23 +1779,11 @@ class VIEW3D_PT_Export(bpy.types.Panel):
             box_bone.label(text="Bones:")
             box_bone.prop(item, "bone_col", icon='GROUP_BONE')
             col_x = box_row.column(align=True)
-            remove_op = col_x.operator("view3d.remove_pointer_item", icon='X')
+            remove_op = col_x.operator("view3d.remove_export_item", icon='X')
             remove_op.index = i
-        layout.operator("view3d.add_export_armature", icon='ADD')
+        layout_col.operator("view3d.add_export_armature", icon='ADD')
         
-        layout.separator(type='LINE')
-        layout_row = layout.row(align=True)
-        split_render = layout_row.split(factor=0.9, align=True)
-        split_render.operator(VIEW3D_OT_MultiviewRender.bl_idname, icon="RENDER_ANIMATION")
-        split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
-        layout_row = layout.row(align=True)
-        split_meta = layout_row.split(factor=0.6, align=True)
-        split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname, icon="EXPORT")
-        split_meta.prop(scene, "file_extension_selection")
-        layout_row = layout.row(align=True)
-        split_save = layout_row.split(factor=0.3, align=True)
-        split_save.label(text="Save Folder:")
-        split_save.prop(scene, "save_folder")
+        # layout.separator(type='LINE')
 
 class VIEW3D_PT_MANO_Model(bpy.types.Panel):
     """"""
@@ -1652,7 +1791,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_MANO_Model"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Multi-IR Render'
+    bl_category = 'Hand Poser'
 
     def draw(self, context):
         layout = self.layout
@@ -1677,7 +1816,7 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_Pose"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Multi-IR Render'
+    bl_category = 'Hand Poser'
 
     def draw(self, context):
         layout = self.layout
@@ -1701,17 +1840,6 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_apply_pose = layout_apply_pose_row.split(factor=0.7, align=True)
         layout_apply_pose.operator(VIEW3D_OT_ApplyPose.bl_idname)
         layout_apply_pose.operator(VIEW3D_OT_DeletePose.bl_idname)
-
-        layout_attach_col = layout.column(align=True)
-        layout_attach_row = layout_attach_col.row(align=True)
-        layout_attach_list = layout_attach_row.split(factor=0.31, align=True)
-        layout_attach_list.label(text="Attachments:")
-        layout_attach_list.prop(scene, "list_attachments")
-        layout_attach_col.prop(scene, "pose_attachment")
-        layout_attach_action_row = layout_attach_col.row(align=True)
-        layout_attach_action = layout_attach_action_row.split(factor=0.7, align=True)
-        layout_attach_action.operator(VIEW3D_OT_AttachObject.bl_idname)
-        layout_attach_action.operator(VIEW3D_OT_DetachObject.bl_idname)
         
         layout_save_col = layout.column(align=True)
         # layout_pose_name_row = layout_save_col.row(align=True)
@@ -1726,9 +1854,24 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_rand = layout_rand_row.split(factor=0.7, align=True)
         layout_rand.operator(VIEW3D_OT_GeneratePose.bl_idname)
         layout_rand.operator(VIEW3D_OT_ResetPose.bl_idname)
-        layout_key = layout.column(align=True)
-        layout_key.prop(scene, "keyframe_attachments")
-        layout_key.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
+        layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
+        
+        layout.separator(type='LINE')
+        layout_attach_col = layout.column(align=True)
+        layout_attach_col.prop(scene, "keyframe_attachments")
+        layout_attach_row = layout_attach_col.row(align=True)
+        layout_attach_list = layout_attach_row.split(factor=0.31, align=True)
+        layout_attach_list.label(text="Attachments:")
+        layout_attach_list.prop(scene, "list_attachments")
+        layout_attach_col.prop(scene, "pose_attachment")
+        layout_attach_action_row = layout_attach_col.row(align=True)
+        layout_attach_action = layout_attach_action_row.split(factor=0.7, align=True)
+        layout_attach_action.operator(VIEW3D_OT_AttachObject.bl_idname)
+        layout_attach_action.operator(VIEW3D_OT_DetachObject.bl_idname)
+
+        # layout_key = layout.column(align=True)
+        # layout_key.prop(scene, "keyframe_attachments")
+        # layout_key.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
 
 class VIEW3D_PT_Shape(bpy.types.Panel):
     """"""
@@ -1736,7 +1879,7 @@ class VIEW3D_PT_Shape(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_Shape"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Multi-IR Render'
+    bl_category = 'Hand Poser'
 
     def draw(self, context):
         layout = self.layout
@@ -1765,7 +1908,7 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_Sensor"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Multi-IR Render"
+    bl_category = "Hand Poser"
 
     def draw(self, context):
         layout = self.layout
@@ -1802,13 +1945,63 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
         # TODO: add radio button to consider IR from "natural" sources (sun)
 
+class VIEW3D_PT_Dataset(bpy.types.Panel):
+    """"""
+    bl_label = "Generate Dataset"
+    bl_idname = "VIEW3D_PT_Dataset"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Hand Poser"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        
+        # layout_row = layout.row(align=True)
+        # split_render = layout_row.split(factor=0.9, align=True)
+        layout_col = layout.column(align=True)
+        layout_col.label(text="Armatures to extract poses from:")
+        for i, item in enumerate(scene.pose_arm):
+            box = layout_col.box()
+            box_row = box.row(align=False)
+            box_col = box_row.column(align=True)
+            box_row_ord = box_col.row(align=True)
+            box_ord = box_row_ord.split(factor=0.27, align=True)
+            box_ord.label(text="Group:")
+            box_ord.prop(item, "group")
+            box_row_arm = box_col.row(align=True)
+            box_arm = box_row_arm.split(factor=0.27, align=True)
+            box_arm.label(text="Armature:")
+            box_arm.prop(item, "arm_ref", icon='ARMATURE_DATA')
+            box_row_bone = box_col.row(align=True)
+            box_bone = box_row_bone.split(factor=0.27, align=True)
+            box_bone.label(text="Bones:")
+            box_bone.prop(item, "bone_col", icon='GROUP_BONE')
+            col_x = box_row.column(align=True)
+            remove_op = col_x.operator("view3d.remove_pose_item", icon='X')
+            remove_op.index = i
+        layout_col.operator("view3d.add_pose_armature", icon='ADD')
+        layout.operator(VIEW3D_OT_GenerateFrames.bl_idname, icon="SEQUENCE")
+
+        layout.separator(type="LINE")
+        layout.operator(VIEW3D_OT_MultiviewRender.bl_idname, icon="RENDER_ANIMATION")
+        # split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
+        layout_row = layout.row(align=True)
+        split_meta = layout_row.split(factor=0.6, align=True)
+        split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname, icon="EXPORT")
+        split_meta.prop(scene, "file_extension_selection")
+
 classes = (
+    VIEW3D_OT_GenerateFrames,
     VIEW3D_OT_MultiviewRender,
-    VIEW3D_OT_InfoBox,
+    # VIEW3D_OT_InfoBox,
     VIEW3D_OT_ExportMetadata,
     ExportArmatureGroup,
     VIEW3D_OT_AddExportArmature,
     VIEW3D_OT_RemoveExportArmature,
+    PoseArmatureGroup,
+    VIEW3D_OT_AddPoseArmature,
+    VIEW3D_OT_RemovePoseArmature,
     # VIEW3D_OT_ImportMANO,
     VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_AttachObject,
@@ -1831,6 +2024,7 @@ classes = (
     VIEW3D_OT_RandomSensorPosition,
     # VIEW3D_OT_RandomSensorRotation,
     VIEW3D_OT_SensorKeyframe,
+    VIEW3D_PT_Dataset,
     VIEW3D_PT_Export,
     VIEW3D_PT_MANO_Model,
     VIEW3D_PT_Pose,
@@ -1847,6 +2041,7 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.Scene.export_arm = bpy.props.CollectionProperty(type=ExportArmatureGroup)
+    bpy.types.Scene.pose_arm = bpy.props.CollectionProperty(type=PoseArmatureGroup)
     print("Registered")
 
 def unregister():

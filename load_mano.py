@@ -76,9 +76,7 @@ def load_mano_model(hand, mano_path):
     weights = data['weights']
     return v_template, shapedirs, faces, joints, weights, anatomical_consistent_basis
 
-def load_regressor(hand):
-    ROOT_DIR = Path(__file__).parent
-    mano_path = ROOT_DIR / 'data' / f"MANO_{hand}.npz"
+def load_regressor(mano_path):
     data = np.load(mano_path)
     j_regressor = data['J_regressor']
     return j_regressor
