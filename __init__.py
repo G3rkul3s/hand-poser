@@ -416,7 +416,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
     """"""
     bl_idname = "view3d.muliview_render"
     bl_label = "Render Animation"
-    bl_description="Render the imgaes from sensors for all frames"
+    bl_description="Render the imgaes from sensors"
     
     def execute(self, context):
         # Check for sensors
@@ -1096,7 +1096,7 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
         name="",
         description="Poses in the same group are keyframed on the same frame. " \
         "Each frame will contain a combination of those poses.\n" \
-        "Avoid assigning armature poses with the same bone collection to the same group",
+        "Avoid assigning bone collections with shared bones to the same group",
         default=1,
         min=1,
         max=100,
@@ -1130,30 +1130,27 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
     """"""
     bl_idname = "view3d.generate_frames"
     bl_label = "Generate Keyframes"
-    bl_description="Generate keyframes with the selected pools of poses"
+    bl_description="Generate keyframes with the selected pool of poses.\n" \
+    "If you are regenerating the keyframes clear the armature animation data first"
 
     i: int
 
-    def keyframe(self, context, pose_group, index=0, current_poses=None):
-        if current_poses is None:
-            current_poses = []
-
+    def keyframe(self, context, pose_group, index=0):
         # If we reached the end of the group
         if index == len(pose_group):
-            for arm, pose in current_poses:
-                context.scene.armature_ref = arm.arm_ref
-                context.scene.selected_bone_collection = arm.bone_col
-                context.scene.pose_selection = pose
-                context.scene.frame_set(self.i)
-                self.i += 1
-                bpy.ops.view3d.apply_pose('EXEC_DEFAULT')
-                bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
+            # Move to the next frame
+            self.i += 1
             return
-        
         # Recursively iterate over all poses to get their combinations
         (arm, poses), = pose_group[index].items()
         for pose in poses:
-            self.keyframe(context, pose_group, index + 1, current_poses + [(arm, pose)])
+            context.scene.armature_ref = arm.arm_ref
+            context.scene.selected_bone_collection = arm.bone_col
+            context.scene.pose_selection = pose
+            context.scene.frame_set(self.i)
+            bpy.ops.view3d.apply_pose('EXEC_DEFAULT')
+            bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
+            self.keyframe(context, pose_group, index + 1)
 
     def execute(self, context):
         if POSE_PATH.exists():
@@ -1191,7 +1188,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     """"""
     bl_idname = "view3d.export_metadata"
     bl_label = "Export Metadata"
-    bl_description="Export sensors and joint positions for each frame"
+    bl_description="Export sensor and hand metadata"
 
     def get_sensors_data(self, context, sensor_collection, matrix_world):
         # TODO: detect hand visibility, bool "{armature bone_col} in frame"
