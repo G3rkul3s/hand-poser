@@ -272,6 +272,7 @@ bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
     name="",
     description="Predefined pose",
     items=get_poses,
+    default=0,
     # default=1,
     update=load_vis_att_from_file,
 )
@@ -338,14 +339,14 @@ bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
     name="",
     description = "Mesh with MANO right hand vertex group and shape keys",
     type=bpy.types.Object,
-    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys,
+    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys and obj.vertex_groups["MANO_RIGHT_HAND"],
 )
 
 bpy.types.Scene.deformable_mesh_left_ref = bpy.props.PointerProperty(
     name="",
     description = "Mesh with MANO left hand vertex group and shape keys",
     type=bpy.types.Object,
-    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys and (obj.vertex_groups["MANO_RIGHT_HAND"] or obj.vertex_groups["MANO_LEFT_HAND"]),
+    poll=lambda self, obj: obj.type == 'MESH' and obj.data.shape_keys and obj.vertex_groups["MANO_LEFT_HAND"],
 )
 
 bpy.types.Scene.sensor_type = bpy.props.EnumProperty(
@@ -1093,7 +1094,9 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
 
     group: bpy.props.IntProperty(
         name="",
-        description="",
+        description="Poses in the same group are keyframed on the same frame. " \
+        "Each frame will contain a combination of those poses.\n" \
+        "Avoid assigning armature poses with the same bone collection to the same group",
         default=1,
         min=1,
         max=100,
@@ -1103,7 +1106,7 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
 class VIEW3D_OT_AddPoseArmature(bpy.types.Operator):
     bl_idname = "view3d.add_pose_armature"
     bl_label = "Add"
-    bl_description = "Add an armature for pose generation"
+    bl_description = "Add an armature for keyframe generation"
 
     def execute(self, context):
         scene = context.scene
@@ -1113,7 +1116,7 @@ class VIEW3D_OT_AddPoseArmature(bpy.types.Operator):
 class VIEW3D_OT_RemovePoseArmature(bpy.types.Operator):
     bl_idname = "view3d.remove_pose_item"
     bl_label = ""
-    bl_description = "Remove an armature from pose generation"
+    bl_description = "Remove an armature from keyframe generation"
 
     index: bpy.props.IntProperty() # type: ignore
 
@@ -1126,8 +1129,8 @@ class VIEW3D_OT_RemovePoseArmature(bpy.types.Operator):
 class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
     """"""
     bl_idname = "view3d.generate_frames"
-    bl_label = "Generate Frames"
-    bl_description=""
+    bl_label = "Generate Keyframes"
+    bl_description="Generate keyframes with the selected pools of poses"
 
     i: int
 
@@ -1240,6 +1243,25 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         context.view_layer.objects.active = active_curr
         return armature_data
 
+    def get_mano_shape_data(self, context, export_armatures):
+        mano_data = []
+        for export in export_armatures:
+            armature = export.arm_ref
+            if not armature:
+                continue
+            shape_info = {}
+            shape_info["armature"] = armature.name
+            shape_info["right_hand_shape"] = []
+            shape_info["left_hand_shape"] = []
+            for obj in armature.children:
+                if obj.type == 'MESH' and obj.data.shape_keys:
+                    if obj.vertex_groups["MANO_RIGHT_HAND"]:
+                        shape_info["right_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+                    elif obj.vertex_groups["MANO_LEFT_HAND"]:
+                        shape_info["left_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+            mano_data.append(shape_info)
+        return mano_data
+
     def execute(self, context):
         # Check for save folder
         save_folder = context.scene.save_folder
@@ -1264,7 +1286,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
             context.scene.frame_set(i)
-            # TODO: export mano shape parameters
+            mano_data = self.get_mano_shape_data(context, export_armatures)
             # Get sensor(s) metadata
             sensors_data = self.get_sensors_data(context, sensor_collection, matrix_world) if sensor_collection else []
             # Get armature(s) metadata
@@ -1272,7 +1294,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             # Save metadata
             export_filepath = Path(meta_path, f"Frame_{i:06}.json")
             with open(export_filepath, 'w') as f:
-                json.dump({"Sensor data":sensors_data, "Armature data":armature_data}, f, indent=4)
+                json.dump({"Sensor data":sensors_data, "MANO hand data":mano_data, "Armature data":armature_data}, f, indent=4)
         context.scene.frame_set(current_frame)
         self.report({'INFO'}, "Metadata successfully exported")
         return {'FINISHED'}
@@ -1960,7 +1982,7 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
         # layout_row = layout.row(align=True)
         # split_render = layout_row.split(factor=0.9, align=True)
         layout_col = layout.column(align=True)
-        layout_col.label(text="Armatures to extract poses from:")
+        layout_col.label(text="Armatures which poses will be keyframed:")
         for i, item in enumerate(scene.pose_arm):
             box = layout_col.box()
             box_row = box.row(align=False)
