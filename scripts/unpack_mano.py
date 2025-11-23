@@ -1,7 +1,10 @@
+"""
+This script must be executed using other python environment due to Blender's python not having 'scipy' module installed
+"""
 import pickle
 import numpy as np
 
-with open('./MANO_RIGHT.pkl', 'rb') as f:
+with open('./MANO_RIGHT.pkl', 'rb') as f:           # provide your own path to the .pkl file
     data_right = pickle.load(f, encoding="latin1")
 
     v_template_right = data_right['v_template']
@@ -20,7 +23,7 @@ with open('./MANO_RIGHT.pkl', 'rb') as f:
             J_regressor=j_regressor_right,
             weights=weights_right)
 
-with open('./MANO_LEFT.pkl', 'rb') as f:
+with open('./MANO_LEFT.pkl', 'rb') as f:            # provide your own path to the .pkl file
     data_left = pickle.load(f, encoding="latin1")
 
     v_template_left = data_left['v_template']

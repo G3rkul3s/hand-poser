@@ -15,6 +15,7 @@ import random
 import numpy as np
 import math
 import json
+import pickle
 # import re
 # import os
 # import sys
@@ -414,7 +415,7 @@ bpy.types.Scene.list_attachments = bpy.props.EnumProperty(
 
 class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
     """"""
-    bl_idname = "view3d.muliview_render"
+    bl_idname = "view3d.multiview_render"
     bl_label = "Render Animation"
     bl_description="Render the imgaes from sensors"
     
@@ -1644,13 +1645,17 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
             update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
         
         return{'FINISHED'}
-    
+
 class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
     bl_idname = "view3d.add_mano_hand"
     bl_label = "Add"
     bl_description = "Add a MANO hand model"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        return context.scene.mano_folder
+    
     def execute(self, context):
         mano_path = Path(bpy.path.abspath(context.scene.mano_folder) + f'MANO_{context.scene.hand_selection}.npz')
         if not mano_path.exists():
@@ -1660,25 +1665,31 @@ class VIEW3D_OT_AddMANOHand(bpy.types.Operator):
         obj.location = context.scene.cursor.location
         return{'FINISHED'}
 
-"""class VIEW3D_OT_ImportMANO(bpy.types.Operator):
+class VIEW3D_OT_ImportMANO(bpy.types.Operator):
     bl_idname = "view3d.import_mano"
-    bl_label = "Import MANO"
-    bl_description = "Import MANO hand models"
+    bl_label = "Load Import Script"
+    bl_description = "Load the import script that will unpack mano files to be used in this add-on"
     bl_options = {'REGISTER', 'UNDO'}
-
+    
     def execute(self, context):
-        if context.scene.mano_folder:
-            mano_right_path = bpy.path.abspath(context.scene.mano_folder) + "MANO_RIGHT.pkl"
-            mano_left_path = bpy.path.abspath(context.scene.mano_folder) + "MANO_LEFT.pkl"
-            if not os.path.exists(mano_right_path):
-                self.report({'WARNING'}, "MANO_RIGHT.pkl file not found")
-            if not os.path.exists(mano_left_path):
-                self.report({'WARNING'}, "MANO_RIGHT.pkl file not found")
-            lm.generate_npz(mano_right_path, mano_left_path)
-        else:
-            self.report({'ERROR'}, "No folder provided")
-            return {'CANCELLED'}
-        return{'FINISHED'}"""
+        script_name = "unpack_mano.py"
+        # Remove the old script to avoid duplicates
+        if script_name in bpy.data.texts:
+            bpy.data.texts.remove(bpy.data.texts[script_name])
+        # Load the script
+        textblock = bpy.data.texts.load(str(ROOT_DIR / "scripts" / script_name))
+        # Jump to Scripting workspace
+        bpy.context.window.workspace = bpy.data.workspaces['Scripting']
+        # Select the loaded script in a Text Editor
+        for area in context.window.screen.areas:
+            if area.type == 'TEXT_EDITOR':
+                for space in area.spaces:
+                    if space.type == 'TEXT_EDITOR':
+                        space.text = textblock      # switch to the loaded script
+                        textblock.current_line_index = 0   # go to top
+                        break
+
+        return{'FINISHED'}
 
 class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
     bl_idname = "view3d.configure_compositing"
@@ -1821,6 +1832,7 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         split_mano = layout_row.split(factor=0.35, align=True)
         split_mano.label(text="MANO Folder:")
         split_mano.prop(scene, "mano_folder")
+        layout.operator(VIEW3D_OT_ImportMANO.bl_idname)
         # layout_col.operator(VIEW3D_OT_ImportMANO.bl_idname)
         layout_col = layout.column(align=True)
         layout_row = layout_col.row(align=True)
@@ -2021,7 +2033,7 @@ classes = (
     PoseArmatureGroup,
     VIEW3D_OT_AddPoseArmature,
     VIEW3D_OT_RemovePoseArmature,
-    # VIEW3D_OT_ImportMANO,
+    VIEW3D_OT_ImportMANO,
     VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_AttachObject,
     VIEW3D_OT_DetachObject,
