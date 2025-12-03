@@ -1,0 +1,22 @@
+# Blender 4.3.0 MTL File: 'Femto Bolt casing.blend'
+# www.blender.org
+
+newmtl FemtoBoltFront
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd ../../../../../../../../../Documents/Blender_IR/textures/FemtoBolt_2.jpg
+
+newmtl FemtoBoltOuter
+Ns 176.399963
+Ka 0.774545 0.774545 0.774545
+Kd 0.440362 0.432450 0.458145
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 3

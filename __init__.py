@@ -15,7 +15,6 @@ import random
 import numpy as np
 import math
 import json
-import pickle
 # import re
 # import os
 # import sys
@@ -25,7 +24,6 @@ from mathutils import Vector, Quaternion, Matrix
 
 from pathlib import Path
 ROOT_DIR = Path(__file__).parent
-POSE_PATH = ROOT_DIR / "data/saved_poses.json"
 
 from importlib import reload
 from . import load_mano as lm
@@ -147,8 +145,9 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
 
 def load_poses_from_file(self, context):
     global _cached_poses
-    if POSE_PATH.exists():
-        with open(POSE_PATH, 'r') as f:
+    pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+    if pose_path.is_file():
+        with open(pose_path, 'r') as f:
             try:
                 data = json.load(f)
             except json.JSONDecodeError:
@@ -172,8 +171,9 @@ def load_vis_att_from_file(self, context):
         _cached_pose_attachments = [("NONE", "None", "")]
         return
     data = []
-    if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+    pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+    if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -241,7 +241,7 @@ bpy.types.Scene.light_selection = bpy.props.EnumProperty(
     name="",
     description="Render type",
     items=[
-        ('RGB', "RGB", "Render with scene lighting"),
+        ('RGB', "Color (RGB)", "Render with scene lighting"),
         ('IR', "Infrared", "Render with infrared sensor lighting"),
         ('DEPTH', "Depth", "Render depth pass"),
     ],
@@ -281,6 +281,18 @@ bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
 bpy.types.Scene.pose_name = bpy.props.StringProperty(
     name="",
     description="Give a name to the pose",
+)
+
+bpy.types.Scene.pose_path = bpy.props.StringProperty(
+    name="",
+    description="",
+    subtype='FILE_PATH',
+)
+
+bpy.types.Scene.shape_path = bpy.props.StringProperty(
+    name="",
+    description="",
+    subtype='FILE_PATH',
 )
 
 bpy.types.Scene.pose_attachment = bpy.props.PointerProperty(
@@ -354,7 +366,9 @@ bpy.types.Scene.sensor_type = bpy.props.EnumProperty(
     name="",
     description="Sensor type",
     items=[
-        ('LEAPSTEREO', "Stereo IR 170", "Ultraleap stereo camera"),
+        ('LEAPSTEREO', "Ultraleap Stereo IR 170", "Ultraleap infrared stereo camera"),
+        ('FEMTOBOLT', "Femto Bolt", "ORBBEC color/depth Time-of-Flight camera"),
+        ('KINECT', "Kinect v2", "Microsoft color/depth Time-of-Flight camera"),
     ],
     default='LEAPSTEREO',
 )
@@ -402,7 +416,7 @@ bpy.types.Scene.sensor_orientation = bpy.props.EnumProperty(
 )"""
 
 bpy.types.Scene.keyframe_attachments = bpy.props.BoolProperty(
-    name="Keyframe with the current attachments",
+    name="Keyframe attachments' visibility",
     description="Keyframe visibility of the current attachments",
     default=False,
 )
@@ -456,7 +470,6 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             # else:
             #     v.use = True
         '''
-        # Invoke render
         cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA']
         ir_render = render_type == 'IR'
         lights = []
@@ -483,6 +496,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                     context.scene.render.filepath = str(Path(ir_path, f"Frame_{i:06}_" + camera.name))
                 elif render_type == 'DEPTH':
                     context.scene.render.filepath = str(Path(depth_path, f"Frame_{i:06}_" + camera.name))
+                # Invoke render
                 bpy.ops.render.render(write_still=True)
         for light in lights:
             light.hide_render = False
@@ -500,28 +514,70 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
     bl_description="Add a sensor to the scene"
     bl_options = {'REGISTER', 'UNDO'}
     
-    def new_sensor_camera(self, cam_name="Camera"):
+    def add_camera_properties(self, camera, rgb=True, ir=False, depth=True):
+        camera["in use"] = True
+        camera.id_properties_ui("in use").update(
+            description="Should this camera be used for rendering",
+            default=True,
+        )
+        camera["color"] = rgb
+        camera.id_properties_ui("color").update(
+            description="Does this camera support rendering in RGB color mode",
+            default=True,
+        )
+        camera["infrared"] = ir
+        camera.id_properties_ui("infrared").update(
+            description="Does this camera support rendering in infrared mode",
+            default=False,
+        )
+        camera["depth"] = depth
+        camera.id_properties_ui("depth").update(
+            description="Does this camera support rendering in depth mode",
+            default=True,
+        )
+    
+    def new_leap_camera(self, cam_name="Camera"):
         cam_data = bpy.data.cameras.new(name=cam_name)
+        """
         # == version 1 ==
-        # cam_data.type = 'PANO'
-        # cam_data.panorama_type = 'FISHEYE_EQUISOLID'
-        # cam_data.fisheye_lens = 1.50
-        # cam_data.fisheye_fov = radians(170.0)
+        cam_data.type = 'PANO'
+        cam_data.panorama_type = 'FISHEYE_EQUISOLID'
+        cam_data.fisheye_lens = 1.50
+        cam_data.fisheye_fov = radians(170.0)
         # == version 2 ==
-        # cam_data.type = 'PERSP'
-        # cam_data.lens = 2.1
-        # cam_data.sensor_fit = 'AUTO'
-        # # cam_data.sensor_width = 4
-        # cam_data.sensor_width = 14
+        cam_data.type = 'PERSP'
+        cam_data.lens = 2.1
+        cam_data.sensor_fit = 'AUTO'
+        # cam_data.sensor_width = 4
+        cam_data.sensor_width = 14
+        """
         # == version 3 ==
         cam_data.type = 'PERSP'
         cam_data.lens = 6.0
+        cam_data.sensor_width = 36
         cam_data.sensor_fit = 'AUTO'
 
-        cam_data.clip_start = 0.001
+        cam_data.clip_start = 0.01
         cam_data.clip_end = 50
         cam_data.display_size = 0.3
+
         return cam_data
+
+    def new_femtobolt_camera(self, cam_name="Camera"):
+        cam_data = bpy.data.cameras.new(name=cam_name)
+        cam_data.type = 'PERSP'
+        cam_data.angle = radians(80.0)
+        cam_data.sensor_width = 36
+        cam_data.sensor_fit = 'AUTO'
+
+        cam_data.clip_start = 0.01
+        cam_data.clip_end = 50
+        cam_data.display_size = 0.3
+
+        return cam_data
+
+    def new_kinect_camera(self, cam_name="Camera"):
+        pass
 
     def new_ir_light(self, light_name='Spot'):
         spot_data = bpy.data.lights.new(name=light_name, type='SPOT')
@@ -534,17 +590,18 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         # current_mode = context.mode
         # bpy.ops.object.mode_set(mode='OBJECT')
         collection_name  = "Sensors"
+        # Create Sensors collection if it doesn't exist
+        target_collection = bpy.data.collections.get(collection_name)
+        if not target_collection:
+            target_collection = bpy.data.collections.new(collection_name)
+            context.scene.collection.children.link(target_collection)
+        
         if context.scene.sensor_type == 'LEAPSTEREO':
-            base_name = "LeapSensor"
+            base_name = "LeapStereoIR"
             index = 1
             while f"{base_name}.{index:03}" in bpy.data.objects:
                 index += 1
             empty_name = f"{base_name}.{index:03}"
-            
-            target_collection = bpy.data.collections.get(collection_name)
-            if not target_collection:
-                target_collection = bpy.data.collections.new(collection_name)
-                context.scene.collection.children.link(target_collection)
             
             # Create an empty
             empty = bpy.data.objects.new(name=empty_name, object_data=None)
@@ -556,18 +613,19 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/UltraleapStereoIR170Casing.obj'), check_existing=True)
             imported_object = bpy.context.selected_objects[0]
             imported_object.parent = empty
+
             # Create cameras
-            # render = context.scene.render
-            # view_names = {v.name for v in render.views}
-            
-            cam_left_data = self.new_sensor_camera()
+            cam_left_data = self.new_leap_camera()
             cam_left_obj = bpy.data.objects.new(name=f"{base_name}_{index:03}_Camera_Left", 
                                                 object_data=cam_left_data)
             cam_left_obj.parent = empty
             cam_left_obj.location = (-0.032, 0.0, 0.0)
             cam_left_obj.scale = (0.2, 0.2, 0.2)
+            self.add_camera_properties(cam_left_obj, rgb=False, ir=True)
             target_collection.objects.link(cam_left_obj)
             
+            # render = context.scene.render
+            # view_names = {v.name for v in render.views}
             # cam_left_name = f"Camera_{base_name}_{index:03}_Left"
             # if cam_left_name not in view_names:
             #     cam_left_rv = render.views.new(name=cam_left_name)
@@ -575,12 +633,13 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             #     cam_left_rv.use = True
             #     # cam_left_rv.file_suffix = ""
             
-            cam_right_data = self.new_sensor_camera()
+            cam_right_data = self.new_leap_camera()
             cam_right_obj = bpy.data.objects.new(name=f"{base_name}_{index:03}_Camera_Right", 
                                                 object_data=cam_right_data)
             cam_right_obj.parent = empty
             cam_right_obj.location = (0.032, 0.0, 0.0)
             cam_right_obj.scale = (0.2, 0.2, 0.2)
+            self.add_camera_properties(cam_right_obj, rgb=False, ir=True)
             target_collection.objects.link(cam_right_obj)
             
             # cam_right_name = f"Camera_{base_name}_{index:03}_Right"
@@ -621,6 +680,36 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
                 empty.select_set(True)
             
             empty.location = context.scene.cursor.location
+        elif context.scene.sensor_type == 'FEMTOBOLT':
+            base_name = "FemtoBolt"
+            index = 1
+            while f"{base_name}.{index:03}" in bpy.data.objects:
+                index += 1
+            empty_name = f"{base_name}.{index:03}"
+            
+            # Create an empty
+            empty = bpy.data.objects.new(name=empty_name, object_data=None)
+            empty.empty_display_type = 'PLAIN_AXES'
+            target_collection.objects.link(empty)
+            empty.empty_display_size = 0.2
+
+            # Import the camera model
+            bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/FemtoBoltCasing.obj'), check_existing=True)
+            imported_object = bpy.context.selected_objects[0]
+            imported_object.parent = empty
+
+            # Create camera
+            cam_data = self.new_femtobolt_camera()
+            cam_obj = bpy.data.objects.new(name=f"{base_name}_{index:03}_Camera", 
+                                                object_data=cam_data)
+            cam_obj.parent = empty
+            cam_obj.location = (0.03, 0.0, -0.025)
+            cam_obj.scale = (0.2, 0.2, 0.2)
+            self.add_camera_properties(cam_obj, rgb=True, ir=False)
+            target_collection.objects.link(cam_obj)
+
+            empty.location = context.scene.cursor.location
+        # TODO: add Kinect
         return {'FINISHED'}
 
 class VIEW3D_OT_GeneratePose(bpy.types.Operator):
@@ -691,8 +780,9 @@ class VIEW3D_OT_AttachObject(bpy.types.Operator):
     def execute(self, context):
         data = []
         obj = context.scene.pose_attachment.name
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -707,7 +797,7 @@ class VIEW3D_OT_AttachObject(bpy.types.Operator):
                 if not obj in pose['render_with']:
                     pose['render_with'].append(obj)
                 break
-        with open(POSE_PATH, 'w') as f:
+        with open(pose_path, 'w') as f:
             json.dump(data, f, indent=4)
         load_vis_att_from_file(self, context)
         context.scene.pose_attachment = None
@@ -729,8 +819,9 @@ class VIEW3D_OT_DetachObject(bpy.types.Operator):
     def execute(self, context):
         data = []
         obj = context.scene.list_attachments
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -745,7 +836,7 @@ class VIEW3D_OT_DetachObject(bpy.types.Operator):
                 if obj in pose['render_with']:
                     pose['render_with'] = [att for att in pose['render_with'] if att != obj]
                 break
-        with open(POSE_PATH, 'w') as f:
+        with open(pose_path, 'w') as f:
             json.dump(data, f, indent=4)
         load_vis_att_from_file(self, context)
         return {'FINISHED'}
@@ -807,22 +898,28 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
         armature_info = self.get_armature_data(context)
         armature_info['render_with'] = []
         data = []
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
-        if any(entry.get("name") == armature_info.get("name") 
-               and entry.get("arm_name") == context.scene.armature_ref.name 
-               and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
-            self.report({'ERROR'}, "A pose with this name already exists")
+        elif pose_path.is_dir():
+            if any(entry.get("name") == armature_info.get("name") 
+                and entry.get("arm_name") == context.scene.armature_ref.name 
+                and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
+                self.report({'ERROR'}, "A pose with this name already exists")
+                return {'CANCELLED'}
+            data.append(armature_info)
+            with open(pose_path / "saved_poses.json", 'w') as f:
+                json.dump(data, f, indent=4)
+            context.scene.pose_name = ""
+            context.scene.pose_path = str((pose_path / "saved_poses.json"))
+            load_poses_from_file(self, context)
+        else:
+            self.report({'ERROR'}, "Invalid path for saved poses")
             return {'CANCELLED'}
-        data.append(armature_info)
-        with open(POSE_PATH, 'w') as f:
-            json.dump(data, f, indent=4)
-        context.scene.pose_name = ""
-        load_poses_from_file(self, context)
         return {'FINISHED'}
 
 class VIEW3D_OT_RenamePose(bpy.types.Operator):
@@ -841,8 +938,9 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
     def execute(self, context):
         # armature_info = self.get_armature_data(context)
         data = []
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -859,7 +957,7 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
             if pose['name'] == context.scene.pose_selection:
                 pose['name'] = context.scene.pose_name
                 break
-        with open(POSE_PATH, 'w') as f:
+        with open(pose_path, 'w') as f:
             json.dump(data, f, indent=4)
         context.scene.pose_name = ""
         load_poses_from_file(self, context)
@@ -880,8 +978,9 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
 
     def execute(self, context):
         data = []
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -928,8 +1027,9 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
 
     def execute(self, context):
         data = []
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -942,7 +1042,7 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
                                                     and entry.get("arm_name") == context.scene.armature_ref.name 
                                                     and entry.get("bone_col") == context.scene.selected_bone_collection)]
         # Save updated list back
-        with open(POSE_PATH, 'w') as f:
+        with open(pose_path, 'w') as f:
             json.dump(new_data, f, indent=4)
         load_poses_from_file(self, context)
         return {'FINISHED'}
@@ -1154,8 +1254,9 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
             self.keyframe(context, pose_group, index + 1)
 
     def execute(self, context):
-        if POSE_PATH.exists():
-            with open(POSE_PATH, 'r') as f:
+        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+        if pose_path.is_file():
+            with open(pose_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -1345,7 +1446,8 @@ class VIEW3D_OT_MoveSensorToOrigin(bpy.types.Operator):
 class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
     bl_idname = "view3d.random_sensor_position"
     bl_label = "Random Position"
-    bl_description = "Set random sensor position on the sampling mesh"
+    bl_description = "Set random sensor position on the sampling mesh.\n" \
+    "Select one or multiple sensors to activate this button"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -1374,6 +1476,9 @@ class VIEW3D_OT_RandomSensorPosition(bpy.types.Operator):
         sample_mesh = sample.data
         world_matrix = sample.matrix_world
         sample_ind = [vertex.index for vertex in sample_mesh.vertices]
+        if len(sample_ind) < len(sensor_list):
+            self.report({'ERROR'}, 'Selected mesh has too few vertices')
+            return{'CANCELLED'}
         for sensor in sensor_list:
             rand_index = random.choice(sample_ind)
             vert_rand = sample_mesh.vertices[rand_index]
@@ -1681,13 +1786,19 @@ class VIEW3D_OT_ImportMANO(bpy.types.Operator):
         # Jump to Scripting workspace
         bpy.context.window.workspace = bpy.data.workspaces['Scripting']
         # Select the loaded script in a Text Editor
-        for area in context.window.screen.areas:
-            if area.type == 'TEXT_EDITOR':
-                for space in area.spaces:
-                    if space.type == 'TEXT_EDITOR':
-                        space.text = textblock      # switch to the loaded script
-                        textblock.current_line_index = 0   # go to top
-                        break
+        def delayed_switch():
+            for window in bpy.context.window_manager.windows:
+                screen = window.screen
+                for area in screen.areas:
+                    if area.type == 'TEXT_EDITOR':
+                        for space in area.spaces:
+                            if space.type == 'TEXT_EDITOR':
+                                space.text = textblock              # switch to the script
+                                textblock.current_line_index = 0    # go to the top of the page
+                                return None   # stop the timer
+            return 0.05  # keep retrying until Text Editor exists
+
+        bpy.app.timers.register(delayed_switch, first_interval=0.05)
 
         return{'FINISHED'}
 
@@ -1827,7 +1938,6 @@ class VIEW3D_PT_MANO_Model(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        # TODO: add a button to load import script
         layout_row = layout.row(align=True)
         split_mano = layout_row.split(factor=0.35, align=True)
         split_mano.label(text="MANO Folder:")
@@ -1861,7 +1971,12 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_bone = layout_row_bone.split(factor=0.3, align=True)
         layout_bone.label(text="Bones:")
         layout_bone.prop(scene, "selected_bone_collection", icon='GROUP_BONE')
-        layout.operator(VIEW3D_OT_LoadPoses.bl_idname)
+        layout_pose_col = layout.column(align=True)
+        layout_pose_col_path = layout_pose_col.row(align=True)
+        layout_pose_path = layout_pose_col_path.split(factor=0.3, align=True)
+        layout_pose_path.label(text="Pose Path:")
+        layout_pose_path.prop(scene, "pose_path")
+        layout_pose_col.operator(VIEW3D_OT_LoadPoses.bl_idname)
         layout_pose_col = layout.column(align=True)
         layout_pose_row = layout_pose_col.row(align=True)
         layout_pose = layout_pose_row.split(factor=0.3, align=True)

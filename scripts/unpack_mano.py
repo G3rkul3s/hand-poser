@@ -1,12 +1,14 @@
 """
-This script must be executed using other python environment due to Blender's python not having 'scipy' module installed
+Convert the MANO hand model to Blender friendly format.
+This script must be executed in other python environment due to Blender's python not having 'scipy' module installed.
+Please porvide the desired paths before running the script, but KEEP the names of the files intact.
 """
 import pickle
 import numpy as np
 
 with open('./MANO_RIGHT.pkl', 'rb') as f:           # provide your own path to the .pkl file
     data_right = pickle.load(f, encoding="latin1")
-
+    # TODO: extract posedirs
     v_template_right = data_right['v_template']
     shapedirs_right = data_right['shapedirs']
     shapedirs_right = np.transpose(shapedirs_right, (2, 0, 1))
@@ -15,7 +17,7 @@ with open('./MANO_RIGHT.pkl', 'rb') as f:           # provide your own path to t
     j_regressor_right = data_right['J_regressor'].toarray()
     weights_right = data_right['weights']
 
-    np.savez("./MANO_RIGHT.npz",
+    np.savez("./MANO_RIGHT.npz",                    # provide your own path for there to save the .npz file
             v_template=v_template_right,
             shapedirs=shapedirs_right,
             f=faces_right,
@@ -37,7 +39,7 @@ with open('./MANO_LEFT.pkl', 'rb') as f:            # provide your own path to t
     weights_left = data_left['weights']
 
 
-    np.savez("./MANO_LEFT.npz",
+    np.savez("./MANO_LEFT.npz",                     # provide your own path for there to save the .npz file
             v_template=v_template_left,
             shapedirs=shapedirs_left,
             f=faces_left,
