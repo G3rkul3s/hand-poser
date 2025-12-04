@@ -29,6 +29,7 @@ from importlib import reload
 from . import load_mano as lm
 
 _cached_poses = [("NONE", "None", "")]
+_cached_shapes = [("NONE", "None", "")]
 _cached_pose_attachments = [("NONE", "None", "")]
 
 def reload_modules():
@@ -193,6 +194,26 @@ def load_vis_att_from_file(self, context):
                     _cached_pose_attachments.extend([(obj, obj, "") for obj in objects])
                 break
 
+def load_shapes_from_file(self, context):
+    global _cached_shapes
+    shape_path = Path(bpy.path.abspath(context.scene.shape_path))
+    if shape_path.is_file():
+        with open(shape_path, 'r') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                _cached_shapes = [("NONE", "None", "")]
+                return
+            shapes = []
+            shapes.extend([(shape["name"], shape["name"], "") for shape in data])
+            _cached_shapes = shapes if len(shapes) > 0 else [("NONE", "None", "")]
+            _cached_shapes.sort()
+    else:
+        _cached_shapes = [("NONE", "None", "")]
+        self.report({'ERROR'}, "A file with saved shapes is missing.\nSave a shape to create one")
+        return
+    return
+
 def get_visibility_attachments(self, context):
     global _cached_pose_attachments
     return _cached_pose_attachments
@@ -200,6 +221,10 @@ def get_visibility_attachments(self, context):
 def get_poses(self, context):
     global _cached_poses
     return _cached_poses
+
+def get_shapes(self, context):
+    global _cached_shapes
+    return _cached_shapes
 
 def is_hide_render_keyframed(obj, frame=None):
     if frame is None:
@@ -289,10 +314,23 @@ bpy.types.Scene.pose_path = bpy.props.StringProperty(
     subtype='FILE_PATH',
 )
 
+bpy.types.Scene.shape_name = bpy.props.StringProperty(
+    name="",
+    description="Give a name to the shape",
+)
+
 bpy.types.Scene.shape_path = bpy.props.StringProperty(
     name="",
     description="",
     subtype='FILE_PATH',
+)
+
+bpy.types.Scene.shape_selection = bpy.props.EnumProperty(
+    name="",
+    description="Predefined shape",
+    items=get_shapes,
+    default=0,
+    # default=1,
 )
 
 bpy.types.Scene.pose_attachment = bpy.props.PointerProperty(
@@ -470,11 +508,23 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             # else:
             #     v.use = True
         '''
-        cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA']
-        ir_render = render_type == 'IR'
+        cameras = []
         lights = []
-        if ir_render:
-            lights = [obj for obj in sensor_collection.objects if obj.type == 'LIGHT']
+        try:
+            if render_type == 'RGB':
+                cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA' and obj["in use"] and obj["color"]]
+            elif render_type == 'IR':
+                cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA' and obj["in use"] and obj["infrared"]]
+                lights = [obj for obj in sensor_collection.objects if obj.type == 'LIGHT']
+            elif render_type == 'DEPTH':
+                cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA' and obj["in use"] and obj["depth"]]
+        except KeyError as e:
+            self.report({'ERROR'}, 
+                        f"{repr(e)}\nA camera is missing one or all of the custom properties {{'in use', 'color', 'infrared', 'depth'}}")
+            return{'CANCELLED'}
+        if len(cameras) == 0:
+            self.report({'WARNING'}, f"No suitable camera was found for rendering in '{render_type}' mode")
+            return {'CANCELLED'}
         # Iterate over all frames
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
@@ -482,7 +532,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             # Iterate over all cameras
             for camera in cameras:
                 # Turn on the ir-lights only for the current sensor
-                if ir_render:
+                if render_type == 'IR':
                     sensor = camera.parent
                     for light in lights:
                         if light in sensor.children:
@@ -497,7 +547,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                 elif render_type == 'DEPTH':
                     context.scene.render.filepath = str(Path(depth_path, f"Frame_{i:06}_" + camera.name))
                 # Invoke render
-                bpy.ops.render.render(write_still=True)
+                # bpy.ops.render.render(write_still=True)
         for light in lights:
             light.hide_render = False
         context.scene.frame_set(current_frame)
@@ -613,6 +663,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/UltraleapStereoIR170Casing.obj'), check_existing=True)
             imported_object = bpy.context.selected_objects[0]
             imported_object.parent = empty
+            imported_object.name = f"{base_name}Casing"
 
             # Create cameras
             cam_left_data = self.new_leap_camera()
@@ -697,6 +748,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/FemtoBoltCasing.obj'), check_existing=True)
             imported_object = bpy.context.selected_objects[0]
             imported_object.parent = empty
+            imported_object.name = f"{base_name}Casing"
 
             # Create camera
             cam_data = self.new_femtobolt_camera()
@@ -906,20 +958,22 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
                 except json.JSONDecodeError:
                     return {'CANCELLED'}
         elif pose_path.is_dir():
-            if any(entry.get("name") == armature_info.get("name") 
-                and entry.get("arm_name") == context.scene.armature_ref.name 
-                and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
-                self.report({'ERROR'}, "A pose with this name already exists")
-                return {'CANCELLED'}
-            data.append(armature_info)
-            with open(pose_path / "saved_poses.json", 'w') as f:
-                json.dump(data, f, indent=4)
-            context.scene.pose_name = ""
-            context.scene.pose_path = str((pose_path / "saved_poses.json"))
-            load_poses_from_file(self, context)
+            pose_path = pose_path / "saved_poses.json"
         else:
             self.report({'ERROR'}, "Invalid path for saved poses")
             return {'CANCELLED'}
+        
+        if any(entry.get("name") == armature_info.get("name") 
+                and entry.get("arm_name") == context.scene.armature_ref.name 
+                and entry.get("bone_col") == context.scene.selected_bone_collection for entry in data):
+            self.report({'ERROR'}, "A pose with this name already exists")
+            return {'CANCELLED'}
+        data.append(armature_info)
+        with open(pose_path, 'w') as f:
+            json.dump(data, f, indent=4)
+        context.scene.pose_name = ""
+        context.scene.pose_path = str((pose_path))
+        load_poses_from_file(self, context)
         return {'FINISHED'}
 
 class VIEW3D_OT_RenamePose(bpy.types.Operator):
@@ -1045,6 +1099,188 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
         with open(pose_path, 'w') as f:
             json.dump(new_data, f, indent=4)
         load_poses_from_file(self, context)
+        return {'FINISHED'}
+
+class VIEW3D_OT_LoadShapes(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.load_shapes"
+    bl_label = "Load Shapes"
+    bl_description="Load saved/predefined shapes"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        load_shapes_from_file(self, context)
+        return {'FINISHED'}
+
+class VIEW3D_OT_SaveShape(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.save_shape"
+    bl_label = "Save Shape"
+    bl_description="Save the hand's current shape"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.shape_name) and (
+                (context.scene.deformable_mesh_right_ref) or (context.scene.deformable_mesh_left_ref))
+        except: return False
+
+    def get_shape_data(self, context):
+        shape_info = {}
+        shape_info["name"] = context.scene.shape_name
+        mano_data = []
+        mesh_right = context.scene.deformable_mesh_right_ref
+        mesh_left = context.scene.deformable_mesh_left_ref
+        if mesh_right:
+            mano_data = [key.value for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+        else:
+            mano_data = [key.value for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+        shape_info["shape"] = mano_data
+        return shape_info
+
+    def execute(self, context):
+        shape_info = self.get_shape_data(context)
+        data = []
+        shape_path = Path(bpy.path.abspath(context.scene.shape_path))
+        if shape_path.is_file():
+            with open(shape_path, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        elif shape_path.is_dir():
+            shape_path = shape_path / "saved_shapes.json"
+        else:
+            self.report({'ERROR'}, "Invalid path for saved shapes")
+            return {'CANCELLED'}
+        
+        if any(entry.get("name") == context.scene.shape_name  for entry in data):
+            self.report({'ERROR'}, "A shape with this name already exists")
+            return {'CANCELLED'}
+        data.append(shape_info)
+        with open(shape_path, 'w') as f:
+            json.dump(data, f, indent=4)
+        context.scene.shape_name = ""
+        context.scene.shape_path = str((shape_path))
+        load_shapes_from_file(self, context)
+        return {'FINISHED'}
+
+class VIEW3D_OT_RenameShape(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.rename_shape"
+    bl_label = "Rename"
+    bl_description="Rename currently selected shape"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.shape_name) and (context.scene.shape_selection != "NONE")
+        except: return False
+
+    def execute(self, context):
+        data = []
+        shape_path = Path(bpy.path.abspath(context.scene.shape_path))
+        if shape_path.is_file():
+            with open(shape_path, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved shapes is missing")
+            return {'CANCELLED'}
+        if any(entry.get("name") == context.scene.shape_name for entry in data):
+            self.report({'ERROR'}, "A shape with this name already exists")
+            return {'CANCELLED'}
+        for shape in data:
+            if shape['name'] == context.scene.shape_selection:
+                shape['name'] = context.scene.shape_name
+                break
+        with open(shape_path, 'w') as f:
+            json.dump(data, f, indent=4)
+        context.scene.shape_name = ""
+        load_shapes_from_file(self, context)
+        return {'FINISHED'}
+
+class VIEW3D_OT_ApplyShape(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.apply_shape"
+    bl_label = "Aplly Shape"
+    bl_description="Apply predefined shape to the armature"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return ((context.scene.deformable_mesh_right_ref) or (
+                    context.scene.deformable_mesh_left_ref)) and (context.scene.shape_selection != "NONE")
+        except: return False
+
+    def execute(self, context):
+        data = []
+        shape_path = Path(bpy.path.abspath(context.scene.shape_path))
+        if shape_path.is_file():
+            with open(shape_path, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved shapes is missing")
+            return {'CANCELLED'}
+        shape = context.scene.shape_selection
+        mesh_right = context.scene.deformable_mesh_right_ref
+        mesh_left = context.scene.deformable_mesh_left_ref
+        # Search for the shape
+        for entry in data:
+            if (entry.get("name") == shape):
+                shapekeys = entry.get("shape")
+                # Apply the shapekeys
+                if mesh_right:
+                    right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+                    for i, key_right in enumerate(right_hand_shape_keys):
+                        key_right.value = shapekeys[i]
+                if mesh_left:
+                    left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+                    for i, key_left in enumerate(left_hand_shape_keys):
+                        key_left.value = shapekeys[i]
+                bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
+                break
+        return {'FINISHED'}
+
+class VIEW3D_OT_DeleteShape(bpy.types.Operator):
+    """"""
+    bl_idname = "view3d.delete_shape"
+    bl_label = "Delete"
+    bl_description="Delete currently selected shape"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return (context.scene.shape_selection != "NONE")
+        except: return False
+
+    def execute(self, context):
+        data = []
+        shape_path = Path(bpy.path.abspath(context.scene.shape_path))
+        if shape_path.is_file():
+            with open(shape_path, 'r') as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    return {'CANCELLED'}
+        else:
+            self.report({'ERROR'}, "A file with saved shapes is missing")
+            return {'CANCELLED'}
+        # Exclude the shape
+        new_data = [entry for entry in data if entry.get("name") != context.scene.shape_selection]
+        # Save updated list back
+        with open(shape_path, 'w') as f:
+            json.dump(new_data, f, indent=4)
+        load_shapes_from_file(self, context)
         return {'FINISHED'}
 
 class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
@@ -1746,7 +1982,7 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                 if not mano_path.exists():
                     self.report({'ERROR'}, f"Couldn't find MANO_LEFT.npz file.\nPlease provide a valid path in the MANO Hand panel")
                     return{'CANCELLED'}
-                self.J_regressor_right = lm.load_regressor(str(mano_path))
+                self.J_regressor_left = lm.load_regressor(str(mano_path))
             update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
         
         return{'FINISHED'}
@@ -1971,6 +2207,7 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_bone = layout_row_bone.split(factor=0.3, align=True)
         layout_bone.label(text="Bones:")
         layout_bone.prop(scene, "selected_bone_collection", icon='GROUP_BONE')
+
         layout_pose_col = layout.column(align=True)
         layout_pose_col_path = layout_pose_col.row(align=True)
         layout_pose_path = layout_pose_col_path.split(factor=0.3, align=True)
@@ -2039,6 +2276,30 @@ class VIEW3D_PT_Shape(bpy.types.Panel):
         layout_split = layout_row.split(factor=0.3, align=True)
         layout_split.label(text="Left hand:")
         layout_split.prop(scene, "deformable_mesh_left_ref", icon='MESH_DATA')
+
+        layout_shape_col = layout.column(align=True)
+        layout_shape_col_path = layout_shape_col.row(align=True)
+        layout_shape_path = layout_shape_col_path.split(factor=0.3, align=True)
+        layout_shape_path.label(text="Shape Path:")
+        layout_shape_path.prop(scene, "shape_path")
+        layout_shape_col.operator(VIEW3D_OT_LoadShapes.bl_idname)
+        layout_shape_col = layout.column(align=True)
+        layout_shape_row = layout_shape_col.row(align=True)
+        layout_shape = layout_shape_row.split(factor=0.3, align=True)
+        layout_shape.label(text="Shape:")
+        layout_shape.prop(scene, "shape_selection")
+        layout_apply_shape_row = layout_shape_col.row(align=True)
+        layout_apply_shape = layout_apply_shape_row.split(factor=0.7, align=True)
+        layout_apply_shape.operator(VIEW3D_OT_ApplyShape.bl_idname)
+        layout_apply_shape.operator(VIEW3D_OT_DeleteShape.bl_idname)
+
+        layout_save_col = layout.column(align=True)
+        layout_save_col.prop(scene, "shape_name", placeholder="Shape Name")
+        layout_sr_row = layout_save_col.row(align=True)
+        layout_save_rename = layout_sr_row.split(factor=0.7, align=True)
+        layout_save_rename.operator(VIEW3D_OT_SaveShape.bl_idname)
+        layout_save_rename.operator(VIEW3D_OT_RenameShape.bl_idname)
+
         layout_col = layout.column(align=True)
         layout_col.prop(scene, "std_slider")
         layout_row = layout_col.row(align=True)
@@ -2159,6 +2420,11 @@ classes = (
     VIEW3D_OT_RenamePose,
     VIEW3D_OT_ApplyPose,
     VIEW3D_OT_DeletePose,
+    VIEW3D_OT_LoadShapes,
+    VIEW3D_OT_SaveShape,
+    VIEW3D_OT_RenameShape,
+    VIEW3D_OT_ApplyShape,
+    VIEW3D_OT_DeleteShape,
     VIEW3D_OT_ArmatureKeyframe,
     VIEW3D_OT_RandomMeshShape,
     VIEW3D_OT_ResetMeshShape,
