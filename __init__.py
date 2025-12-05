@@ -32,6 +32,11 @@ _cached_poses = [("NONE", "None", "")]
 _cached_shapes = [("NONE", "None", "")]
 _cached_pose_attachments = [("NONE", "None", "")]
 
+SMPLX_JOINT_NAMES = [
+    'pelvis','left_hip','right_hip','spine1','left_knee','right_knee','spine2','left_ankle','right_ankle','spine3', 'left_foot','right_foot','neck','left_collar','right_collar','head','left_shoulder','right_shoulder','left_elbow', 'right_elbow','left_wrist','right_wrist',
+    'jaw','left_eye_smplhf','right_eye_smplhf','left_index1','left_index2','left_index3','left_middle1','left_middle2','left_middle3','left_pinky1','left_pinky2','left_pinky3','left_ring1','left_ring2','left_ring3','left_thumb1','left_thumb2','left_thumb3','right_index1','right_index2','right_index3','right_middle1','right_middle2','right_middle3','right_pinky1','right_pinky2','right_pinky3','right_ring1','right_ring2','right_ring3','right_thumb1','right_thumb2','right_thumb3'
+]
+NUM_SMPLX_JOINTS=len(SMPLX_JOINT_NAMES)
 NUM_MANO_JOINTS=len(lm.BONE_NAMES)
 
 def reload_modules():
@@ -392,6 +397,12 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
     poll=lambda self, obj: obj.type == 'ARMATURE',
 )
 
+bpy.types.Scene.use_poseshapes = bpy.props.BoolProperty(
+    name="Corrective Pose Shapes",
+    description="Enable/disable corrective pose shapes",
+    default=True,
+)
+
 bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
     name="",
     description = "Mesh with MANO right hand vertex group and shape keys",
@@ -411,8 +422,8 @@ bpy.types.Scene.sensor_type = bpy.props.EnumProperty(
     description="Sensor type",
     items=[
         ('LEAPSTEREO', "Ultraleap Stereo IR 170", "Ultraleap infrared stereo camera"),
-        ('FEMTOBOLT', "Femto Bolt", "ORBBEC color/depth Time-of-Flight camera"),
-        ('KINECT', "Kinect v2", "Microsoft color/depth Time-of-Flight camera"),
+        ('FEMTOBOLT', "Orbbec Femto Bolt", "ORBBEC color/depth Time-of-Flight camera"),
+        ('KINECT', "MicrosoftKinect v2", "Microsoft color/depth Time-of-Flight camera"),
     ],
     default='LEAPSTEREO',
 )
@@ -820,6 +831,11 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
+
+        # Apply corrective poseshapes
+        if context.scene.use_poseshapes:
+            bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
+
         return {'FINISHED'}
 
 class VIEW3D_OT_AttachObject(bpy.types.Operator):
@@ -977,9 +993,11 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
         data.append(armature_info)
         with open(pose_path, 'w') as f:
             json.dump(data, f, indent=4)
+        pose_name = context.scene.pose_name
         context.scene.pose_name = ""
         context.scene.pose_path = str((pose_path))
         load_poses_from_file(self, context)
+        context.scene.pose_selection = pose_name
         return {'FINISHED'}
 
 class VIEW3D_OT_RenamePose(bpy.types.Operator):
@@ -1050,13 +1068,13 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
             return {'CANCELLED'}
         armature = context.scene.armature_ref
         pose = context.scene.pose_selection
+        active_curr = context.view_layer.objects.active
+        current_mode = context.object.mode
         # Search for the pose
         for entry in data:
             if (entry.get("name") == pose 
                 and entry.get("arm_name") == context.scene.armature_ref.name 
                 and entry.get("bone_col") == context.scene.selected_bone_collection):
-                active_curr = context.view_layer.objects.active
-                current_mode = context.object.mode
                 context.view_layer.objects.active = armature
                 bpy.ops.object.mode_set(mode='POSE')
                 # Search for the bone
@@ -1067,9 +1085,15 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
                             bone.rotation_mode = 'QUATERNION'
                             bone.rotation_quaternion = joint["rotation_quaternion"]
                             break
-                bpy.ops.object.mode_set(mode=current_mode)
-                context.view_layer.objects.active = active_curr
                 break
+
+        bpy.ops.object.mode_set(mode=current_mode)
+        context.view_layer.objects.active = active_curr
+        
+        # Apply corrective poseshapes
+        if context.scene.use_poseshapes:
+            bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
+        
         return {'FINISHED'}
 
 class VIEW3D_OT_DeletePose(bpy.types.Operator):
@@ -1107,7 +1131,7 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
         load_poses_from_file(self, context)
         return {'FINISHED'}
 
-# Based on SMPL-X implementation
+# Based on SMPL-X add-on implementation
 def rodrigues_from_pose(armature, bone_name):
     # Use quaternion mode for all bone rotations
     if armature.pose.bones[bone_name].rotation_mode != 'QUATERNION':
@@ -1122,8 +1146,8 @@ def rodrigues_from_pose(armature, bone_name):
 
 class VIEW3D_OT_PoseShapes(bpy.types.Operator):
     bl_idname = "view3d.pose_shapes"
-    bl_label = "Update Hand Pose Shapes"
-    bl_description = ("Update corrective poseshapes for current mesh of the selectd armature")
+    bl_label = "Update Pose Shapes"
+    bl_description = ("Update corrective pose shapes for current mesh of the selectd armature")
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -1146,23 +1170,44 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
 
     # https://github.com/gulvarol/surreal/blob/master/datageneration/main_part1.py
     # Calculate weights of pose corrective blend shapes
-    # Input is pose of all 55 joints, output is weights for all joints except pelvis
-    def rodrigues_to_posecorrective_weight(self, pose):
-        joints_posecorrective = NUM_MANO_JOINTS # MANO joints excluding wrist
+    # Input is pose of all 16 joints, output is weights for all joints except wrist
+    def rodrigues_to_posecorrective_weight(self, pose, num_joints):
+        joints_posecorrective = num_joints # MANO joints excluding wrist
         rod_rots = np.asarray(pose).reshape(joints_posecorrective, 3)
         mat_rots = [self.rodrigues_to_mat(rod_rot) for rod_rot in rod_rots]
         bshapes = np.concatenate([(mat_rot - np.eye(3)).ravel() for mat_rot in mat_rots[1:]])
         return(bshapes)
-
+    
     def execute(self, context):
         armature = context.scene.armature_ref
+        mesh_right = None
+        mesh_left = None
+        mesh_smplx = None
         for child in armature.children:
             if child.type == 'MESH' and child.data.shape_keys:
                 if child.vertex_groups.get("MANO_RIGHT_HAND"):
                     mesh_right = child
                 if child.vertex_groups.get("MANO_LEFT_HAND"):
                     mesh_left = child
+                if child.name.startswith('SMPLX-mesh'):
+                    mesh_smplx = child
         
+        if mesh_smplx:
+            pose = [0.0] * (NUM_SMPLX_JOINTS * 3)
+
+            for index in range(NUM_SMPLX_JOINTS):
+                joint_name = SMPLX_JOINT_NAMES[index]
+                joint_pose = rodrigues_from_pose(armature, joint_name)
+                pose[index*3 + 0] = joint_pose[0]
+                pose[index*3 + 1] = joint_pose[1]
+                pose[index*3 + 2] = joint_pose[2]
+
+            poseweights = self.rodrigues_to_posecorrective_weight(pose, NUM_SMPLX_JOINTS)
+
+            # Set weights for pose corrective shape keys
+            for index, weight in enumerate(poseweights):
+                mesh_smplx.data.shape_keys.key_blocks["Pose%03d" % index].value = weight
+
         if mesh_right:
             # Get armature pose in rodrigues representation
             pose = [0.0] * (NUM_MANO_JOINTS * 3)
@@ -1174,7 +1219,7 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
                 pose[index*3 + 1] = joint_pose[1]
                 pose[index*3 + 2] = joint_pose[2]
             
-            poseweights = self.rodrigues_to_posecorrective_weight(pose)
+            poseweights = self.rodrigues_to_posecorrective_weight(pose, NUM_MANO_JOINTS)
 
             # Set weights for pose corrective shape keys
             for index, weight in enumerate(poseweights):
@@ -1191,7 +1236,7 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
                 pose[index*3 + 1] = joint_pose[1]
                 pose[index*3 + 2] = joint_pose[2]
             
-            poseweights = self.rodrigues_to_posecorrective_weight(pose)
+            poseweights = self.rodrigues_to_posecorrective_weight(pose, NUM_MANO_JOINTS)
 
             # Set weights for pose corrective shape keys
             for index, weight in enumerate(poseweights):
@@ -1259,9 +1304,11 @@ class VIEW3D_OT_SaveShape(bpy.types.Operator):
         data.append(shape_info)
         with open(shape_path, 'w') as f:
             json.dump(data, f, indent=4)
+        shape_name = context.scene.shape_name
         context.scene.shape_name = ""
         context.scene.shape_path = str((shape_path))
         load_shapes_from_file(self, context)
+        context.scene.shape_selection = shape_name
         return {'FINISHED'}
 
 class VIEW3D_OT_RenameShape(bpy.types.Operator):
@@ -2335,7 +2382,9 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_rand = layout_rand_row.split(factor=0.7, align=True)
         layout_rand.operator(VIEW3D_OT_GeneratePose.bl_idname)
         layout_rand.operator(VIEW3D_OT_ResetPose.bl_idname)
-        layout.operator(VIEW3D_OT_PoseShapes.bl_idname)
+        layout_corr = layout.column(align=True)
+        layout_corr.prop(scene, "use_poseshapes")
+        layout_corr.operator(VIEW3D_OT_PoseShapes.bl_idname)
         layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
         
         layout.separator(type='LINE')
