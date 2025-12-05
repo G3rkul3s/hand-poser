@@ -391,6 +391,23 @@ bpy.types.Scene.std_slider = bpy.props.FloatProperty(
     max=5.0
 )
 
+bpy.types.Scene.jitter = bpy.props.FloatProperty(
+    name="Max Joint Jitter",
+    description="Apply noise too the saved joint positions",
+    default=0.0,
+    min=0.0,
+    soft_max=0.1,
+    unit="LENGTH",
+)
+
+bpy.types.Scene.keyframe_spacing = bpy.props.IntProperty(
+    name="Keyframe Spacing",
+    description="How many frames should be between keyframes",
+    default=0,
+    min=0,
+    soft_max=100,
+)
+
 bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
     name="",
     type=bpy.types.Object,
@@ -1616,12 +1633,13 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
     "If you are regenerating the keyframes clear the armature animation data first"
 
     i: int
+    spacing: int
 
     def keyframe(self, context, pose_group, index=0):
         # If we reached the end of the group
         if index == len(pose_group):
             # Move to the next frame
-            self.i += 1
+            self.i += 1 + self.spacing
             return
         # Recursively iterate over all poses to get their combinations
         (arm, poses), = pose_group[index].items()
@@ -1646,6 +1664,7 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
             self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
             return {'CANCELLED'}
 
+        self.spacing = context.scene.keyframe_spacing
         pose_arms = context.scene.pose_arm
         arm_groups = {}
         # Sort by groups
@@ -1661,10 +1680,15 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
         
         current_frame = context.scene.frame_current
         self.i = current_frame
-
+        # Generate keyframes
         for arm_group in arm_groups:
             self.keyframe(context, arm_groups[arm_group])
         
+        end_frame = self.i - self.spacing - 1
+        if end_frame > context.scene.frame_end:
+            context.scene.frame_end = end_frame
+        context.scene.frame_current = current_frame
+
         return {'FINISHED'}
 
 class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
@@ -1688,8 +1712,14 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 sensors_data.append(sens_info)
         return sensors_data
 
-    def get_bone_data(self, bone, matrix_world, armature_world):
+    def get_bone_data(self, bone, matrix_world, armature_world, max_noise):
         location = matrix_world @ (armature_world @ bone.head)
+        noise = Vector((
+            random.uniform(0.0, max_noise),
+            random.uniform(0.0, max_noise),
+            random.uniform(0.0, max_noise)
+        ))
+        location = location + noise
         bone_info = {}
         bone_info["name"] = bone.name
         bone_info["location"] = list(location)
@@ -1701,6 +1731,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         armature_data = []
         active_curr = context.view_layer.objects.active
         current_mode = context.object.mode
+        max_noise = context.scene.jitter
         for export in export_armatures:
             armature = export.arm_ref
             if not armature:
@@ -1716,7 +1747,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             for bone in armature.pose.bones:
                 if bone_collection and bone.name not in bone_collection.bones:
                     continue
-                bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world)
+                bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world, max_noise)
                 armature_info["joints"].append(bone_info)
             armature_data.append(armature_info)
         bpy.ops.object.mode_set(mode=current_mode)
@@ -2304,8 +2335,8 @@ class VIEW3D_PT_Export(bpy.types.Panel):
             remove_op = col_x.operator("view3d.remove_export_item", icon='X')
             remove_op.index = i
         layout_col.operator("view3d.add_export_armature", icon='ADD')
-        
-        # layout.separator(type='LINE')
+
+        layout.prop(scene, "jitter")
 
 class VIEW3D_PT_MANO_Model(bpy.types.Panel):
     """"""
@@ -2536,6 +2567,7 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
             remove_op = col_x.operator("view3d.remove_pose_item", icon='X')
             remove_op.index = i
         layout_col.operator("view3d.add_pose_armature", icon='ADD')
+        layout.prop(scene, "keyframe_spacing")
         layout.operator(VIEW3D_OT_GenerateFrames.bl_idname, icon="SEQUENCE")
 
         layout.separator(type="LINE")
@@ -2594,10 +2626,11 @@ classes = (
 )
 
 def register():
-    global _cached_poses
-    global _cached_pose_attachments
-    _cached_poses = [("NONE", "None", "")]
-    _cached_pose_attachments = [("NONE", "None", "")]
+    # global _cached_poses
+    # global _cached_pose_attachments
+    # _cached_poses = [("NONE", "None", "")]
+    # _cached_pose_attachments = [("NONE", "None", "")]
+    random.seed()
     reload_modules()
     for cls in classes:
         bpy.utils.register_class(cls)
