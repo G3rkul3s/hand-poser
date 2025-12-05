@@ -6,26 +6,31 @@ Please porvide the desired paths before running the script, but KEEP the names o
 import pickle
 import numpy as np
 
-with open('./MANO_RIGHT.pkl', 'rb') as f:           # provide your own path to the .pkl file
+PKL_PATH = '../generate npz/'        # provide your own path to the input .pkl file directory
+NPZ_PATH = '../generate npz/'        # provide your own path to the output .npz file directory
+
+with open(PKL_PATH + 'MANO_RIGHT.pkl', 'rb') as f:
     data_right = pickle.load(f, encoding="latin1")
-    # TODO: extract posedirs
     v_template_right = data_right['v_template']
     shapedirs_right = data_right['shapedirs']
     shapedirs_right = np.transpose(shapedirs_right, (2, 0, 1))
+    posedirs_right = data_right['posedirs']
+    posedirs_right = np.transpose(posedirs_right, (2, 0, 1))
     faces_right = data_right['f']
     joints_right = data_right['J']
     j_regressor_right = data_right['J_regressor'].toarray()
     weights_right = data_right['weights']
 
-    np.savez("./MANO_RIGHT.npz",                    # provide your own path for there to save the .npz file
+    np.savez(NPZ_PATH + "MANO_RIGHT.npz",                    
             v_template=v_template_right,
             shapedirs=shapedirs_right,
+            posedirs=posedirs_right,
             f=faces_right,
             J=joints_right,
             J_regressor=j_regressor_right,
             weights=weights_right)
 
-with open('./MANO_LEFT.pkl', 'rb') as f:            # provide your own path to the .pkl file
+with open(PKL_PATH + 'MANO_LEFT.pkl', 'rb') as f:
     data_left = pickle.load(f, encoding="latin1")
 
     v_template_left = data_left['v_template']
@@ -33,15 +38,20 @@ with open('./MANO_LEFT.pkl', 'rb') as f:            # provide your own path to t
     shapedirs_left_np = shapedirs_left.r.copy()
     shapedirs_left_np[:, 0, :] *= -1                            # fixes a shapedirs bug
     shapedirs_left = np.transpose(shapedirs_left_np, (2, 0, 1))
+    posedirs_left = data_left['posedirs']
+    posedirs_left_np = posedirs_left.copy()
+    posedirs_left_np[:, 0, :] *= -1                             # fixes a posedirs bug
+    posedirs_left = np.transpose(posedirs_left_np, (2, 0, 1))
     faces_left = data_left['f']
     joints_left = data_left['J']
     j_regressor_left = data_left['J_regressor'].toarray()
     weights_left = data_left['weights']
 
 
-    np.savez("./MANO_LEFT.npz",                     # provide your own path for there to save the .npz file
+    np.savez(NPZ_PATH + "MANO_LEFT.npz",
             v_template=v_template_left,
             shapedirs=shapedirs_left,
+            posedirs=posedirs_left,
             f=faces_left,
             J=joints_left,
             J_regressor=j_regressor_left,

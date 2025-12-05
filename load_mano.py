@@ -69,12 +69,13 @@ def load_mano_model(hand, mano_path):
     basis_path = ROOT_DIR / 'data' / f"basis_{hand}.txt"
     anatomical_consistent_basis = np.loadtxt(basis_path, dtype=float)
     data = np.load(mano_path)
-    v_template = data['v_template']   # [778, 3]
-    shapedirs = data['shapedirs']     # [10, 778, 3]
-    faces = data['f']                 # [1538, 3]
+    v_template = data['v_template']     # [778, 3]
+    shapedirs = data['shapedirs']       # [10, 778, 3]
+    posedirs = data['posedirs']         # [135, 778, 3]
+    faces = data['f']                   # [1538, 3]
     joints = data['J']
     weights = data['weights']
-    return v_template, shapedirs, faces, joints, weights, anatomical_consistent_basis
+    return v_template, shapedirs, posedirs, faces, joints, weights, anatomical_consistent_basis
 
 def load_regressor(mano_path):
     data = np.load(mano_path)
@@ -93,18 +94,25 @@ def create_mano_mesh(name, vertices, faces):
 
     return obj
 
-def add_shape_keys(obj, shapedirs, base_vertices, hand):
+def add_shape_keys(obj, shapedirs, posedirs, base_vertices, hand):
     if obj.data.shape_keys is None:
         obj.shape_key_add(name="Basis")
 
     for i, shape in enumerate(shapedirs):
-        key = obj.shape_key_add(name=f"Shape{hand}_{i+1}", from_mix=False)
+        key = obj.shape_key_add(name=f"MANOShape{hand}_{i+1}", from_mix=False)
         key.slider_max = 5.0
         key.slider_min = -5.0
         for v_idx, delta in enumerate(shape):
             key.data[v_idx].co = base_vertices[v_idx] + delta
+    
+    for i, pose in enumerate(posedirs):
+        key = obj.shape_key_add(name=f"MANOPose{hand}_{i+1}", from_mix=False)
+        key.slider_max = 5.0
+        key.slider_min = -5.0
+        for v_idx, delta in enumerate(pose):
+            key.data[v_idx].co = base_vertices[v_idx] + delta
 
-def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents, basis):
+def create_joint_armature(mesh, hand, joint_positions, basis):
     armature_data = bpy.data.armatures.new(f"MANO_{hand}_Hand")
     armature_obj = bpy.data.objects.new(f"MANO_{hand}_Hand", armature_data)
     bpy.context.collection.objects.link(armature_obj)
@@ -113,7 +121,8 @@ def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents,
     bpy.ops.object.mode_set(mode='EDIT')
     bones = {}
 
-    for i, name in enumerate(bone_names):
+    for i, name in enumerate(BONE_NAMES):
+        name = f"{hand}_" + name
         bone = armature_data.edit_bones.new(name)
         head = joint_positions[i]
         x_axis = Vector(basis[i, 6:9]) * -1 # makes the system right handed
@@ -127,6 +136,7 @@ def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents,
 
     # add joints for fingertips
     for name, vert_index in FINGERTIPS.items():
+        name = f"{hand}_" + name
         bone = armature_data.edit_bones.new(name)
         head = mesh.data.vertices[vert_index].co
 
@@ -138,15 +148,19 @@ def create_joint_armature(mesh, hand, joint_positions, bone_names, bone_parents,
         bones[name] = bone
 
     # Set up parent relationships
-    for name, parent_name in bone_parents.items():
+    for name, parent_name in BONE_PARENTS.items():
+        name = f"{hand}_" + name
+        if parent_name:
+            parent_name = f"{hand}_" + parent_name
         if parent_name and name in bones and parent_name in bones:
             bones[name].parent = bones[parent_name]
 
     bpy.ops.object.mode_set(mode='OBJECT')
     return armature_obj
 
-def assign_skinning_weights(obj, weights, bone_names, hand):
-    for joint_idx, bone_name in enumerate(bone_names):
+def assign_skinning_weights(obj, weights, hand):
+    for joint_idx, bone_name in enumerate(BONE_NAMES):
+        bone_name = f"{hand}_" + bone_name
         # Create vertex group for each joint
         vg = obj.vertex_groups.new(name=bone_name)
         for v_idx, w in enumerate(weights[:, joint_idx]):
@@ -157,12 +171,12 @@ def assign_skinning_weights(obj, weights, bone_names, hand):
     verts = [v.index for v in obj.data.vertices]
     full_hand.add(verts, 1.0, 'REPLACE')
 
-def add_constraints_to_armature(armature):
+def add_constraints_to_armature(armature, hand):
     bpy.context.view_layer.objects.active = armature
     current_mode = bpy.context.mode
     bpy.ops.object.mode_set(mode='POSE')
     
-    root = armature.pose.bones.get(BONE_NAMES[0])
+    root = armature.pose.bones.get(f"{hand}_" + BONE_NAMES[0])
     constraint = root.constraints.new('LIMIT_ROTATION')
     constraint.use_limit_x = False
     constraint.use_limit_y = False
@@ -170,7 +184,7 @@ def add_constraints_to_armature(armature):
     constraint.owner_space = 'LOCAL'
     constraint.use_transform_limit = True
     for bone in root.children:
-        if bone.name == BONE_NAMES[13]:     # if thumb
+        if bone.name == f"{hand}_" + BONE_NAMES[13]:     # if thumb
             # Proximal
             constraint = bone.constraints.new('LIMIT_ROTATION')
             constraint.min_x = radians(-90.0)
@@ -219,20 +233,20 @@ def add_constraints_to_armature(armature):
             constraint.min_x = radians(-110.0)
             constraint.max_x = radians(15.0)
             constraint.use_limit_x = True
-            if bone.name == BONE_NAMES[7]:      # if pinky
+            if bone.name == f"{hand}_" + BONE_NAMES[7]:      # if pinky
                 constraint.min_y = radians(-15.0)
                 constraint.max_y = radians(35.0)
                 constraint.min_z = radians(-20.0)
                 constraint.max_z = radians(0.0)
-            elif bone.name == BONE_NAMES[10]:   # if ring
+            elif bone.name == f"{hand}_" + BONE_NAMES[10]:   # if ring
                 constraint.min_y = radians(-5.0)
                 constraint.max_y = radians(15.0)
-            elif bone.name == BONE_NAMES[4]:    # if middle
+            elif bone.name == f"{hand}_" + BONE_NAMES[4]:    # if middle
                 constraint.min_y = radians(-5.0)
                 constraint.max_y = radians(15.0)
                 constraint.min_z = radians(-10.0)
                 constraint.max_z = radians(0.0)
-            elif bone.name == BONE_NAMES[1]:    # if index
+            elif bone.name == f"{hand}_" + BONE_NAMES[1]:    # if index
                 constraint.min_y = radians(-20.0)
                 constraint.max_y = radians(15.0)
                 constraint.min_z = radians(-3.0)
@@ -280,16 +294,16 @@ def load_mano_hand(hand: str, mano_path):
         'LEFT' or 'RIGHT' hand
     """
 
-    v_template, shapedirs, faces, joints, weights, basis = load_mano_model(hand, mano_path)
+    v_template, shapedirs, posedirs, faces, joints, weights, basis = load_mano_model(hand, mano_path)
 
     # === Create base mesh ===
     mesh = create_mano_mesh(f"MANO_{hand}_Hand_mesh", v_template, faces)
 
     # === Add shape keys ===
-    add_shape_keys(mesh, shapedirs, v_template, hand)
+    add_shape_keys(mesh, shapedirs, posedirs, v_template, hand)
     
     # === Add armature ===
-    arm = create_joint_armature(mesh, hand, joints, BONE_NAMES, BONE_PARENTS, basis)
+    arm = create_joint_armature(mesh, hand, joints, basis)
     mesh.parent = arm
    
     # Set the origin of the armature to wrist bone
@@ -313,9 +327,9 @@ def load_mano_hand(hand: str, mano_path):
 
     arm_mod = mesh.modifiers.new(name="ArmatureDeform", type='ARMATURE')
     arm_mod.object = arm
-    assign_skinning_weights(mesh, weights, BONE_NAMES, hand)
+    assign_skinning_weights(mesh, weights, hand)
 
-    add_constraints_to_armature(arm)
+    add_constraints_to_armature(arm, hand)
 
 
     return arm

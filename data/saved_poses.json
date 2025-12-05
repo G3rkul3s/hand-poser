@@ -4,7 +4,7 @@
         "arm_name": "SMPLX-lh-female",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -13,7 +13,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.5588757395744324,
                     -0.7981572151184082,
@@ -22,7 +22,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.906693696975708,
                     -0.42178964614868164,
@@ -31,7 +31,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.7071065902709961,
                     -0.7071069478988647,
@@ -40,7 +40,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -49,7 +49,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.5709357857704163,
                     -0.8153808116912842,
@@ -58,7 +58,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.8516936302185059,
                     -0.5240400433540344,
@@ -67,7 +67,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.7071068286895752,
                     -0.7071067690849304,
@@ -76,7 +76,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -85,7 +85,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.5709357857704163,
                     -0.8153808116912842,
@@ -94,7 +94,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9394383430480957,
                     -0.3427179157733917,
@@ -103,7 +103,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.7071067690849304,
                     -0.7071067690849304,
@@ -112,7 +112,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -121,7 +121,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.573227047920227,
                     -0.8186530470848083,
@@ -130,7 +130,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9317493438720703,
                     -0.36310216784477234,
@@ -139,7 +139,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.7071067094802856,
                     -0.7071068286895752,
@@ -148,7 +148,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -157,7 +157,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9779118895530701,
                     0.2046099305152893,
@@ -166,7 +166,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     1.0,
                     -2.9802322387695312e-08,
@@ -175,7 +175,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9850494861602783,
                     0.17227168381214142,
@@ -184,7 +184,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -200,7 +200,7 @@
         "arm_name": "SMPLX-lh-female",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -209,7 +209,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9926031827926636,
                     -0.10369794070720673,
@@ -218,7 +218,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361938685178757,
@@ -227,7 +227,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9986295104026794,
                     0.0523359477519989,
@@ -236,7 +236,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -245,7 +245,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.5709357857704163,
                     -0.8153808116912842,
@@ -254,7 +254,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.8516936302185059,
                     -0.5240400433540344,
@@ -263,7 +263,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.7071068286895752,
                     -0.7071067690849304,
@@ -272,7 +272,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -281,7 +281,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.5709357857704163,
                     -0.8153808116912842,
@@ -290,7 +290,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9394383430480957,
                     -0.3427179157733917,
@@ -299,7 +299,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.7071067690849304,
                     -0.7071067690849304,
@@ -308,7 +308,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -317,7 +317,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.573227047920227,
                     -0.8186530470848083,
@@ -326,7 +326,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9317493438720703,
                     -0.36310216784477234,
@@ -335,7 +335,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.7071067094802856,
                     -0.7071068286895752,
@@ -344,7 +344,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -353,7 +353,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9779118895530701,
                     0.2046099305152893,
@@ -362,7 +362,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     1.0,
                     -2.9802322387695312e-08,
@@ -371,7 +371,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9850494861602783,
                     0.17227168381214142,
@@ -380,7 +380,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -396,7 +396,7 @@
         "arm_name": "SMPLX-lh-female",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -405,7 +405,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9926031827926636,
                     -0.10369794070720673,
@@ -414,7 +414,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361938685178757,
@@ -423,7 +423,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9986295104026794,
                     0.0523359477519989,
@@ -432,7 +432,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -441,7 +441,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9422466158866882,
                     -0.3209124803543091,
@@ -450,7 +450,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361937940120697,
@@ -459,7 +459,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9999812245368958,
                     -0.006130477413535118,
@@ -468,7 +468,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -477,7 +477,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.5709357857704163,
                     -0.8153808116912842,
@@ -486,7 +486,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9394383430480957,
                     -0.3427179157733917,
@@ -495,7 +495,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.7071067690849304,
                     -0.7071067690849304,
@@ -504,7 +504,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -513,7 +513,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.573227047920227,
                     -0.8186530470848083,
@@ -522,7 +522,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9317493438720703,
                     -0.36310216784477234,
@@ -531,7 +531,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.7071067094802856,
                     -0.7071068286895752,
@@ -540,7 +540,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -549,7 +549,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9779118895530701,
                     0.2046099305152893,
@@ -558,7 +558,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     1.0,
                     -2.9802322387695312e-08,
@@ -567,7 +567,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9850494861602783,
                     0.17227168381214142,
@@ -576,7 +576,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -592,7 +592,7 @@
         "arm_name": "SMPLX-lh-female",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -601,7 +601,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9926031827926636,
                     -0.10369794070720673,
@@ -610,7 +610,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361938685178757,
@@ -619,7 +619,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9986295104026794,
                     0.0523359477519989,
@@ -628,7 +628,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -637,7 +637,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9920461177825928,
                     -0.11143407225608826,
@@ -646,7 +646,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361937940120697,
@@ -655,7 +655,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9999812245368958,
                     -0.006130477413535118,
@@ -664,7 +664,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -673,7 +673,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.5709357857704163,
                     -0.8153808116912842,
@@ -682,7 +682,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9394383430480957,
                     -0.3427179157733917,
@@ -691,7 +691,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.7071067690849304,
                     -0.7071067690849304,
@@ -700,7 +700,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -709,7 +709,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9525062441825867,
                     -0.30251258611679077,
@@ -718,7 +718,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361942410469055,
@@ -727,7 +727,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9953237175941467,
                     -0.09659609198570251,
@@ -736,7 +736,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -745,7 +745,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9779118895530701,
                     0.2046099305152893,
@@ -754,7 +754,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     1.0,
                     -2.9802322387695312e-08,
@@ -763,7 +763,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9850494861602783,
                     0.17227168381214142,
@@ -772,7 +772,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -788,7 +788,7 @@
         "arm_name": "SMPLX-lh-female",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -797,7 +797,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9983113408088684,
                     0.017717184498906136,
@@ -806,7 +806,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361940920352936,
@@ -815,7 +815,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -824,7 +824,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -833,7 +833,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9974980354309082,
                     0.060028016567230225,
@@ -842,7 +842,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361937940120697,
@@ -851,7 +851,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -860,7 +860,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -869,7 +869,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.9962460994720459,
                     0.05146867409348488,
@@ -878,7 +878,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361937940120697,
@@ -887,7 +887,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -896,7 +896,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -905,7 +905,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9990190267562866,
                     0.007636038586497307,
@@ -914,7 +914,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.043619364500045776,
@@ -923,7 +923,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -932,7 +932,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -941,7 +941,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9605826139450073,
                     0.2635820806026459,
@@ -950,7 +950,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     1.0,
                     2.9802322387695312e-08,
@@ -959,7 +959,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -968,7 +968,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1003,7 +1003,7 @@
                 ]
             },
             {
-                "name": "left_wrist",
+                "name": "left_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1037,7 +1037,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1071,7 +1071,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1105,7 +1105,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1139,7 +1139,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1173,7 +1173,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     0.993533194065094,
                     -0.08599033206701279,
@@ -1207,7 +1207,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1241,7 +1241,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     0.9945271015167236,
                     -0.004160360433161259,
@@ -1275,7 +1275,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     0.9945271015167236,
                     -0.004160360433161259,
@@ -1309,7 +1309,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     0.9575653672218323,
                     -0.2686447501182556,
@@ -1325,7 +1325,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1334,7 +1334,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9425206184387207,
                     -0.3076002299785614,
@@ -1343,7 +1343,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9972772598266602,
                     -0.07374291121959686,
@@ -1352,7 +1352,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9796343445777893,
                     -0.2007899135351181,
@@ -1361,7 +1361,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1370,7 +1370,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9742991328239441,
                     -0.2252579629421234,
@@ -1379,7 +1379,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9714429974555969,
                     -0.23727299273014069,
@@ -1388,7 +1388,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9813162088394165,
                     -0.19240203499794006,
@@ -1397,7 +1397,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1406,7 +1406,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.9842721223831177,
                     -0.17660512030124664,
@@ -1415,7 +1415,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9430841207504272,
                     -0.33255425095558167,
@@ -1424,7 +1424,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.999537467956543,
                     -0.03041098825633526,
@@ -1433,7 +1433,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1442,7 +1442,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9848077297210693,
                     -0.17364823818206787,
@@ -1451,7 +1451,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9665913581848145,
                     -0.25632229447364807,
@@ -1460,7 +1460,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9869235157966614,
                     -0.1611894965171814,
@@ -1469,7 +1469,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1478,7 +1478,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.991875171661377,
                     0.040234148502349854,
@@ -1487,7 +1487,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9896344542503357,
                     -0.1436096429824829,
@@ -1496,7 +1496,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9994934797286987,
                     -0.03182490915060043,
@@ -1505,7 +1505,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1524,7 +1524,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1533,7 +1533,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1542,7 +1542,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1551,7 +1551,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1560,7 +1560,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1569,7 +1569,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1578,7 +1578,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1587,7 +1587,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1596,7 +1596,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1605,7 +1605,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1614,7 +1614,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1623,7 +1623,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1632,7 +1632,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1641,7 +1641,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1650,7 +1650,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1659,7 +1659,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1668,7 +1668,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1677,7 +1677,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1686,7 +1686,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1695,7 +1695,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1704,7 +1704,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1720,7 +1720,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1729,7 +1729,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.7994797229766846,
                     -0.5962828993797302,
@@ -1738,7 +1738,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9664745330810547,
                     -0.25676268339157104,
@@ -1747,7 +1747,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9616004824638367,
                     -0.27445316314697266,
@@ -1756,7 +1756,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1765,7 +1765,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.7822247743606567,
                     -0.6189154386520386,
@@ -1774,7 +1774,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9555069804191589,
                     -0.29496854543685913,
@@ -1783,7 +1783,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9649183750152588,
                     -0.2625499665737152,
@@ -1792,7 +1792,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1801,7 +1801,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.9046561121940613,
                     -0.3231339454650879,
@@ -1810,7 +1810,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9631514549255371,
                     -0.268959641456604,
@@ -1819,7 +1819,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9167355298995972,
                     -0.39949461817741394,
@@ -1828,7 +1828,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1837,7 +1837,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.8767771124839783,
                     -0.4776812791824341,
@@ -1846,7 +1846,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9317493438720703,
                     -0.36310216784477234,
@@ -1855,7 +1855,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9505517482757568,
                     -0.3105662167072296,
@@ -1864,7 +1864,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1873,7 +1873,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9012447595596313,
                     -0.2660452425479889,
@@ -1882,7 +1882,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9853488802909851,
                     -0.17055055499076843,
@@ -1891,7 +1891,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9611014127731323,
                     -0.276195764541626,
@@ -1900,7 +1900,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1919,7 +1919,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1928,7 +1928,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.995724618434906,
                     0.08321651816368103,
@@ -1937,7 +1937,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9451467990875244,
                     -0.3266458213329315,
@@ -1946,7 +1946,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9448544383049011,
                     -0.32749056816101074,
@@ -1955,7 +1955,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -1964,7 +1964,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9910234808921814,
                     0.09319868683815002,
@@ -1973,7 +1973,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9256777763366699,
                     -0.37831294536590576,
@@ -1982,7 +1982,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.8911288380622864,
                     -0.4537503123283386,
@@ -1991,7 +1991,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2000,7 +2000,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.9902680516242981,
                     0.0,
@@ -2009,7 +2009,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.8850598335266113,
                     -0.46547731757164,
@@ -2018,7 +2018,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9506945610046387,
                     -0.3101288676261902,
@@ -2027,7 +2027,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2036,7 +2036,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9858685731887817,
                     -0.1675204485654831,
@@ -2045,7 +2045,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.7932369709014893,
                     -0.6089130640029907,
@@ -2054,7 +2054,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9877272248268127,
                     -0.1561887562274933,
@@ -2063,7 +2063,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2072,7 +2072,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.7671230435371399,
                     -0.4587685167789459,
@@ -2081,7 +2081,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9994155764579773,
                     -0.03418300300836563,
@@ -2090,7 +2090,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9989004731178284,
                     -0.046880580484867096,
@@ -2099,7 +2099,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2118,7 +2118,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2127,7 +2127,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9884819388389587,
                     -0.12744802236557007,
@@ -2136,7 +2136,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9925045371055603,
                     -0.12220790982246399,
@@ -2145,7 +2145,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9927312135696411,
                     -0.12035231292247772,
@@ -2154,7 +2154,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2163,7 +2163,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9358567595481873,
                     -0.3414147198200226,
@@ -2172,7 +2172,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.7928468585014343,
                     -0.609420895576477,
@@ -2181,7 +2181,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.8243550062179565,
                     -0.5660731792449951,
@@ -2190,7 +2190,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2199,7 +2199,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7917693257331848,
                     -0.6108201742172241,
@@ -2208,7 +2208,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.8604108095169067,
                     -0.5096010565757751,
@@ -2217,7 +2217,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.8167806267738342,
                     -0.576948344707489,
@@ -2226,7 +2226,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2235,7 +2235,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.8669874668121338,
                     -0.49832993745803833,
@@ -2244,7 +2244,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.7919384837150574,
                     -0.6106009483337402,
@@ -2253,7 +2253,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.8472976088523865,
                     -0.5311183929443359,
@@ -2262,7 +2262,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2271,7 +2271,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9492002725601196,
                     -0.28464651107788086,
@@ -2280,7 +2280,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9343613982200623,
                     -0.35632675886154175,
@@ -2289,7 +2289,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9963185787200928,
                     0.08572778850793839,
@@ -2298,7 +2298,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2317,7 +2317,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2326,7 +2326,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9807084202766418,
                     -0.195476233959198,
@@ -2335,7 +2335,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2344,7 +2344,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2353,7 +2353,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2362,7 +2362,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.6621968746185303,
                     -0.7493298649787903,
@@ -2371,7 +2371,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.7411788702011108,
                     -0.6713076233863831,
@@ -2380,7 +2380,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9125123620033264,
                     -0.4090490937232971,
@@ -2389,7 +2389,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2398,7 +2398,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7338459491729736,
                     -0.6323014497756958,
@@ -2407,7 +2407,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.71608567237854,
                     -0.6980124115943909,
@@ -2416,7 +2416,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9377316236495972,
                     -0.3473605811595917,
@@ -2425,7 +2425,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2434,7 +2434,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.736484706401825,
                     -0.6764541864395142,
@@ -2443,7 +2443,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.681225061416626,
                     -0.7320740818977356,
@@ -2452,7 +2452,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.885066032409668,
                     -0.4654654860496521,
@@ -2461,7 +2461,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2470,7 +2470,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.7974010705947876,
                     -0.4814378023147583,
@@ -2479,7 +2479,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9521962404251099,
                     -0.3054870367050171,
@@ -2488,7 +2488,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9992618560791016,
                     0.03841497749090195,
@@ -2497,7 +2497,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2513,7 +2513,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2522,7 +2522,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9800869822502136,
                     -0.19417732954025269,
@@ -2531,7 +2531,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361934959888458,
@@ -2540,7 +2540,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2549,7 +2549,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2558,7 +2558,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9943525195121765,
                     -0.09618739038705826,
@@ -2567,7 +2567,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361942782998085,
@@ -2576,7 +2576,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2585,7 +2585,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2594,7 +2594,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7073214054107666,
                     -0.6530967354774475,
@@ -2603,7 +2603,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.71608567237854,
                     -0.6980124115943909,
@@ -2612,7 +2612,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9377316236495972,
                     -0.3473605811595917,
@@ -2621,7 +2621,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2630,7 +2630,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9865793585777283,
                     -0.16328246891498566,
@@ -2639,7 +2639,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9993810057640076,
                     0.035179559141397476,
@@ -2648,7 +2648,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9980975389480591,
                     -0.061654508113861084,
@@ -2657,7 +2657,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2666,7 +2666,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.7140533328056335,
                     -0.5957003235816956,
@@ -2675,7 +2675,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9521962404251099,
                     -0.3054870367050171,
@@ -2684,7 +2684,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9992618560791016,
                     0.03841497749090195,
@@ -2693,7 +2693,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2709,7 +2709,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2718,7 +2718,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9775488972663879,
                     -0.1952415406703949,
@@ -2727,7 +2727,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361934959888458,
@@ -2736,7 +2736,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2745,7 +2745,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2754,7 +2754,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9895765781402588,
                     -0.14400769770145416,
@@ -2763,7 +2763,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361942782998085,
@@ -2772,7 +2772,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2781,7 +2781,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2790,7 +2790,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7338459491729736,
                     -0.6323014497756958,
@@ -2799,7 +2799,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.71608567237854,
                     -0.6980124115943909,
@@ -2808,7 +2808,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9377316236495972,
                     -0.3473605811595917,
@@ -2817,7 +2817,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2826,7 +2826,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.736484706401825,
                     -0.6764541864395142,
@@ -2835,7 +2835,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.681225061416626,
                     -0.7320740818977356,
@@ -2844,7 +2844,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.885066032409668,
                     -0.4654654860496521,
@@ -2853,7 +2853,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2862,7 +2862,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.7606424689292908,
                     -0.5376372933387756,
@@ -2871,7 +2871,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9521962404251099,
                     -0.3054870367050171,
@@ -2880,7 +2880,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9992618560791016,
                     0.03841497749090195,
@@ -2889,7 +2889,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2905,7 +2905,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2914,7 +2914,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9887816905975342,
                     -0.14347894489765167,
@@ -2923,7 +2923,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361934959888458,
@@ -2932,7 +2932,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2941,7 +2941,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2950,7 +2950,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9927731156349182,
                     -0.11131244152784348,
@@ -2959,7 +2959,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9990482330322266,
                     0.04361942782998085,
@@ -2968,7 +2968,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2977,7 +2977,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -2986,7 +2986,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7073214054107666,
                     0.0,
@@ -2995,7 +2995,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.71608567237854,
                     0.0,
@@ -3004,7 +3004,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9377316236495972,
                     0.0,
@@ -3013,7 +3013,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3022,7 +3022,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9958055019378662,
                     -0.09149473160505295,
@@ -3031,7 +3031,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9993810057640076,
                     0.035179559141397476,
@@ -3040,7 +3040,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9980975389480591,
                     -0.061654508113861084,
@@ -3049,7 +3049,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3058,7 +3058,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.925859272480011,
                     -0.3493998646736145,
@@ -3067,7 +3067,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.973045825958252,
                     -0.23061172664165497,
@@ -3076,7 +3076,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.7071067690849304,
                     -0.7071067690849304,
@@ -3085,7 +3085,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3101,7 +3101,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3110,7 +3110,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.792164146900177,
                     -0.584532618522644,
@@ -3119,7 +3119,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.8368814587593079,
                     -0.5473842024803162,
@@ -3128,7 +3128,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.8647711277008057,
                     -0.5021661520004272,
@@ -3137,7 +3137,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3146,7 +3146,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.6487013101577759,
                     -0.7481934428215027,
@@ -3155,7 +3155,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9252251386642456,
                     -0.37941861152648926,
@@ -3164,7 +3164,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9397256374359131,
                     -0.34192946553230286,
@@ -3173,7 +3173,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3182,7 +3182,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.5735546350479126,
                     -0.8191208243370056,
@@ -3191,7 +3191,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.9698011875152588,
                     -0.2438967525959015,
@@ -3200,7 +3200,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.9768863320350647,
                     -0.2137594074010849,
@@ -3209,7 +3209,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3218,7 +3218,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.5285388231277466,
                     -0.8481914401054382,
@@ -3227,7 +3227,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.9726427793502808,
                     -0.23230600357055664,
@@ -3236,7 +3236,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9220063090324402,
                     -0.3871748745441437,
@@ -3245,7 +3245,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3254,7 +3254,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9977372288703918,
                     0.022289833053946495,
@@ -3263,7 +3263,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9480805993080139,
                     -0.3180299699306488,
@@ -3272,7 +3272,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9848077297210693,
                     0.17364820837974548,
@@ -3281,7 +3281,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3318,7 +3318,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3352,7 +3352,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3386,7 +3386,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3420,7 +3420,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3454,7 +3454,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3488,7 +3488,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3522,7 +3522,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3556,7 +3556,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3590,7 +3590,7 @@
                 ]
             },
             {
-                "name": "right_wrist",
+                "name": "right_RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3606,7 +3606,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3615,7 +3615,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9192254543304443,
                     -0.3805871307849884,
@@ -3624,7 +3624,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9642871022224426,
                     -0.26485922932624817,
@@ -3633,7 +3633,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.8999412059783936,
                     -0.4360111951828003,
@@ -3642,7 +3642,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3651,7 +3651,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.9923826456069946,
                     -0.12319342792034149,
@@ -3660,7 +3660,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.9995034337043762,
                     -0.03151055425405502,
@@ -3669,7 +3669,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9933821558952332,
                     -0.11485616117715836,
@@ -3678,7 +3678,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3687,7 +3687,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3696,7 +3696,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3705,7 +3705,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3714,7 +3714,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3723,7 +3723,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.9997743964195251,
                     -0.02124195732176304,
@@ -3732,7 +3732,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.99806147813797,
                     -0.062235184013843536,
@@ -3741,7 +3741,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.9949715733528137,
                     -0.10015800595283508,
@@ -3750,7 +3750,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3759,7 +3759,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.8979370594024658,
                     -0.40642380714416504,
@@ -3768,7 +3768,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9968546628952026,
                     -0.07925122231245041,
@@ -3777,7 +3777,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.997651219367981,
                     -0.06849849969148636,
@@ -3786,7 +3786,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3803,7 +3803,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3812,7 +3812,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.9276316165924072,
                     -0.37253645062446594,
@@ -3821,7 +3821,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.9462509155273438,
                     -0.32343360781669617,
@@ -3830,7 +3830,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.9233811497688293,
                     -0.3838844299316406,
@@ -3839,7 +3839,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3848,7 +3848,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.8270436525344849,
                     -0.5485634803771973,
@@ -3857,7 +3857,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.8244116902351379,
                     -0.5659906268119812,
@@ -3866,7 +3866,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.9525808095932007,
                     -0.30428579449653625,
@@ -3875,7 +3875,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3884,7 +3884,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7450990080833435,
                     -0.6430624127388,
@@ -3893,7 +3893,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.8604108095169067,
                     -0.5096010565757751,
@@ -3902,7 +3902,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.8167806267738342,
                     -0.576948344707489,
@@ -3911,7 +3911,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3920,7 +3920,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.7936694622039795,
                     -0.6083492636680603,
@@ -3929,7 +3929,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.7919384837150574,
                     -0.6106009483337402,
@@ -3938,7 +3938,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.8472976088523865,
                     -0.5311183929443359,
@@ -3947,7 +3947,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -3956,7 +3956,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9908632040023804,
                     0.013961284421384335,
@@ -3965,7 +3965,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9218736290931702,
                     -0.3874906897544861,
@@ -3974,7 +3974,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9281383156776428,
                     -0.3722354769706726,
@@ -3983,7 +3983,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4002,7 +4002,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4011,7 +4011,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.8911135196685791,
                     -0.3403247892856598,
@@ -4020,7 +4020,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.8120554089546204,
                     -0.5835803151130676,
@@ -4029,7 +4029,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.984045684337616,
                     -0.17791610956192017,
@@ -4038,7 +4038,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4047,7 +4047,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.7720999121665955,
                     -0.6352595686912537,
@@ -4056,7 +4056,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.7928468585014343,
                     -0.609420895576477,
@@ -4065,7 +4065,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.8243550062179565,
                     -0.5660731792449951,
@@ -4074,7 +4074,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4083,7 +4083,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.7809106707572937,
                     -0.6024432182312012,
@@ -4092,7 +4092,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.8604108095169067,
                     -0.5096010565757751,
@@ -4101,7 +4101,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.8167806267738342,
                     -0.576948344707489,
@@ -4110,7 +4110,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4119,7 +4119,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.7742465138435364,
                     -0.63288414478302,
@@ -4128,7 +4128,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.7919384837150574,
                     -0.6106009483337402,
@@ -4137,7 +4137,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.8472976088523865,
                     -0.5311183929443359,
@@ -4146,7 +4146,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4155,7 +4155,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9057096838951111,
                     -0.3478475511074066,
@@ -4164,7 +4164,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.9989525675773621,
                     -0.045757584273815155,
@@ -4173,7 +4173,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9932036995887756,
                     -0.11638903617858887,
@@ -4182,7 +4182,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4201,7 +4201,7 @@
         "bone_col": "RightHand",
         "joints": [
             {
-                "name": "Wrist",
+                "name": "RIGHT_Wrist",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4210,7 +4210,7 @@
                 ]
             },
             {
-                "name": "IndexProximal",
+                "name": "RIGHT_IndexProximal",
                 "rotation_quaternion": [
                     0.6492600440979004,
                     -0.7403799295425415,
@@ -4219,7 +4219,7 @@
                 ]
             },
             {
-                "name": "IndexIntermadiate",
+                "name": "RIGHT_IndexIntermadiate",
                 "rotation_quaternion": [
                     0.6660391092300415,
                     -0.7459167838096619,
@@ -4228,7 +4228,7 @@
                 ]
             },
             {
-                "name": "IndexDistal",
+                "name": "RIGHT_IndexDistal",
                 "rotation_quaternion": [
                     0.7071065902709961,
                     -0.7071069478988647,
@@ -4237,7 +4237,7 @@
                 ]
             },
             {
-                "name": "IndexTip",
+                "name": "RIGHT_IndexTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4246,7 +4246,7 @@
                 ]
             },
             {
-                "name": "MiddleProximal",
+                "name": "RIGHT_MiddleProximal",
                 "rotation_quaternion": [
                     0.5711973309516907,
                     -0.8161680102348328,
@@ -4255,7 +4255,7 @@
                 ]
             },
             {
-                "name": "MiddleIntermadiate",
+                "name": "RIGHT_MiddleIntermadiate",
                 "rotation_quaternion": [
                     0.796132504940033,
                     -0.6051223874092102,
@@ -4264,7 +4264,7 @@
                 ]
             },
             {
-                "name": "MiddleDistal",
+                "name": "RIGHT_MiddleDistal",
                 "rotation_quaternion": [
                     0.7071068286895752,
                     -0.7071067094802856,
@@ -4273,7 +4273,7 @@
                 ]
             },
             {
-                "name": "MiddleTip",
+                "name": "RIGHT_MiddleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4282,7 +4282,7 @@
                 ]
             },
             {
-                "name": "LittleProximal",
+                "name": "RIGHT_LittleProximal",
                 "rotation_quaternion": [
                     0.6586889028549194,
                     -0.7392938733100891,
@@ -4291,7 +4291,7 @@
                 ]
             },
             {
-                "name": "LittleIntermadiate",
+                "name": "RIGHT_LittleIntermadiate",
                 "rotation_quaternion": [
                     0.7018402814865112,
                     -0.712334394454956,
@@ -4300,7 +4300,7 @@
                 ]
             },
             {
-                "name": "LittleDistal",
+                "name": "RIGHT_LittleDistal",
                 "rotation_quaternion": [
                     0.7071067690849304,
                     -0.7071067690849304,
@@ -4309,7 +4309,7 @@
                 ]
             },
             {
-                "name": "LittleTip",
+                "name": "RIGHT_LittleTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4318,7 +4318,7 @@
                 ]
             },
             {
-                "name": "RingProximal",
+                "name": "RIGHT_RingProximal",
                 "rotation_quaternion": [
                     0.6811188459396362,
                     -0.730872392654419,
@@ -4327,7 +4327,7 @@
                 ]
             },
             {
-                "name": "RingIntermadiate",
+                "name": "RIGHT_RingIntermadiate",
                 "rotation_quaternion": [
                     0.6622200012207031,
                     -0.7493094801902771,
@@ -4336,7 +4336,7 @@
                 ]
             },
             {
-                "name": "RingDistal",
+                "name": "RIGHT_RingDistal",
                 "rotation_quaternion": [
                     0.7071067094802856,
                     -0.7071068286895752,
@@ -4345,7 +4345,7 @@
                 ]
             },
             {
-                "name": "RingTip",
+                "name": "RIGHT_RingTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,
@@ -4354,7 +4354,7 @@
                 ]
             },
             {
-                "name": "ThumbMetacarpal",
+                "name": "RIGHT_ThumbMetacarpal",
                 "rotation_quaternion": [
                     0.9552084803581238,
                     -0.28274261951446533,
@@ -4363,7 +4363,7 @@
                 ]
             },
             {
-                "name": "ThumbProximal",
+                "name": "RIGHT_ThumbProximal",
                 "rotation_quaternion": [
                     0.995576024055481,
                     -0.09395959973335266,
@@ -4372,7 +4372,7 @@
                 ]
             },
             {
-                "name": "ThumbDistal",
+                "name": "RIGHT_ThumbDistal",
                 "rotation_quaternion": [
                     0.9919052720069885,
                     -0.12697994709014893,
@@ -4381,7 +4381,7 @@
                 ]
             },
             {
-                "name": "ThumbTip",
+                "name": "RIGHT_ThumbTip",
                 "rotation_quaternion": [
                     1.0,
                     0.0,

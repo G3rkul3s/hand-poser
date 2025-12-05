@@ -32,6 +32,8 @@ _cached_poses = [("NONE", "None", "")]
 _cached_shapes = [("NONE", "None", "")]
 _cached_pose_attachments = [("NONE", "None", "")]
 
+NUM_MANO_JOINTS=len(lm.BONE_NAMES)
+
 def reload_modules():
     # print("reloading")
     reload(lm)
@@ -113,7 +115,7 @@ def update_light_selection(self, context):
     else:
         bpy.context.window_manager.popup_menu(compositing_error, title="Warning", icon='ERROR')
 
-def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
+def update_joint_positions(armature_obj, J_regressor, vert_shaped, context, hand):
     """
     Updates the joint (bone) positions in the armature based on the current shape of the mesh.
     """
@@ -121,11 +123,12 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
     joints = J_regressor @ vert_shaped # shape (16, 3)
     active_curr = context.view_layer.objects.active
     context.view_layer.objects.active = armature_obj
-    current_mode = context.mode
+    current_mode = context.object.mode
     bpy.ops.object.mode_set(mode='EDIT')
     edit_bones = armature_obj.data.edit_bones
 
     for i, name in enumerate(lm.BONE_NAMES):
+        name = hand + name
         if name not in edit_bones:
             continue
         bone = edit_bones[name]
@@ -135,6 +138,9 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context):
         bone.tail = new_tail
     
     for name, index in lm.FINGERTIPS.items():
+        name = hand + name
+        if name not in edit_bones:
+            continue
         bone = edit_bones[name]
         new_head = vert_shaped[index]
         new_tail = bone.tail + Vector(new_head - bone.head)
@@ -783,7 +789,7 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         armature.hide_set(False)
         active_curr = context.view_layer.objects.active
         context.view_layer.objects.active = armature
-        current_mode = context.mode
+        current_mode = context.object.mode
         bpy.ops.object.mode_set(mode='POSE')
         bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         for bone in armature.pose.bones:
@@ -927,7 +933,7 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
 
     def get_armature_data(self, context):
         active_curr = context.view_layer.objects.active
-        current_mode = context.mode
+        current_mode = context.object.mode
         armature = context.scene.armature_ref
         context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='POSE')
@@ -1050,7 +1056,7 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
                 and entry.get("arm_name") == context.scene.armature_ref.name 
                 and entry.get("bone_col") == context.scene.selected_bone_collection):
                 active_curr = context.view_layer.objects.active
-                current_mode = context.mode
+                current_mode = context.object.mode
                 context.view_layer.objects.active = armature
                 bpy.ops.object.mode_set(mode='POSE')
                 # Search for the bone
@@ -1101,6 +1107,98 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
         load_poses_from_file(self, context)
         return {'FINISHED'}
 
+# Based on SMPL-X implementation
+def rodrigues_from_pose(armature, bone_name):
+    # Use quaternion mode for all bone rotations
+    if armature.pose.bones[bone_name].rotation_mode != 'QUATERNION':
+        armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
+
+    quat = armature.pose.bones[bone_name].rotation_quaternion
+    (axis, angle) = quat.to_axis_angle()
+    rodrigues = axis
+    rodrigues.normalize()
+    rodrigues = rodrigues * angle
+    return rodrigues
+
+class VIEW3D_OT_PoseShapes(bpy.types.Operator):
+    bl_idname = "view3d.pose_shapes"
+    bl_label = "Update Hand Pose Shapes"
+    bl_description = ("Update corrective poseshapes for current mesh of the selectd armature")
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            # Enable button only if mesh is active object and parent is armature
+            return (context.scene.armature_ref)
+        except: return False
+
+    # https://github.com/gulvarol/surreal/blob/master/datageneration/main_part1.py
+    # Computes rotation matrix through Rodrigues formula as in cv2.Rodrigues
+    def rodrigues_to_mat(self, rotvec):
+        theta = np.linalg.norm(rotvec)
+        r = (rotvec/theta).reshape(3, 1) if theta > 0. else rotvec
+        cost = np.cos(theta)
+        mat = np.asarray([[0, -r[2], r[1]],
+                        [r[2], 0, -r[0]],
+                        [-r[1], r[0], 0]], dtype=object)
+        return(cost*np.eye(3) + (1-cost)*r.dot(r.T) + np.sin(theta)*mat)
+
+    # https://github.com/gulvarol/surreal/blob/master/datageneration/main_part1.py
+    # Calculate weights of pose corrective blend shapes
+    # Input is pose of all 55 joints, output is weights for all joints except pelvis
+    def rodrigues_to_posecorrective_weight(self, pose):
+        joints_posecorrective = NUM_MANO_JOINTS # MANO joints excluding wrist
+        rod_rots = np.asarray(pose).reshape(joints_posecorrective, 3)
+        mat_rots = [self.rodrigues_to_mat(rod_rot) for rod_rot in rod_rots]
+        bshapes = np.concatenate([(mat_rot - np.eye(3)).ravel() for mat_rot in mat_rots[1:]])
+        return(bshapes)
+
+    def execute(self, context):
+        armature = context.scene.armature_ref
+        for child in armature.children:
+            if child.type == 'MESH' and child.data.shape_keys:
+                if child.vertex_groups.get("MANO_RIGHT_HAND"):
+                    mesh_right = child
+                if child.vertex_groups.get("MANO_LEFT_HAND"):
+                    mesh_left = child
+        
+        if mesh_right:
+            # Get armature pose in rodrigues representation
+            pose = [0.0] * (NUM_MANO_JOINTS * 3)
+            
+            for index in range(NUM_MANO_JOINTS):
+                joint_name = "RIGHT_" + lm.BONE_NAMES[index]
+                joint_pose = rodrigues_from_pose(armature, joint_name)
+                pose[index*3 + 0] = joint_pose[0]
+                pose[index*3 + 1] = joint_pose[1]
+                pose[index*3 + 2] = joint_pose[2]
+            
+            poseweights = self.rodrigues_to_posecorrective_weight(pose)
+
+            # Set weights for pose corrective shape keys
+            for index, weight in enumerate(poseweights):
+                mesh_right.data.shape_keys.key_blocks[f"MANOPoseRIGHT_{index+1}"].value = weight
+        
+        if mesh_left:
+            # Get armature pose in rodrigues representation
+            pose = [0.0] * (NUM_MANO_JOINTS * 3)
+            
+            for index in range(NUM_MANO_JOINTS):
+                joint_name = "LEFT_" + lm.BONE_NAMES[index]
+                joint_pose = rodrigues_from_pose(armature, joint_name)
+                pose[index*3 + 0] = joint_pose[0]
+                pose[index*3 + 1] = joint_pose[1]
+                pose[index*3 + 2] = joint_pose[2]
+            
+            poseweights = self.rodrigues_to_posecorrective_weight(pose)
+
+            # Set weights for pose corrective shape keys
+            for index, weight in enumerate(poseweights):
+                mesh_left.data.shape_keys.key_blocks[f"MANOPoseRIGHT_{index+1}"].value = weight
+
+        return {'FINISHED'}
+
 class VIEW3D_OT_LoadShapes(bpy.types.Operator):
     """"""
     bl_idname = "view3d.load_shapes"
@@ -1133,9 +1231,9 @@ class VIEW3D_OT_SaveShape(bpy.types.Operator):
         mesh_right = context.scene.deformable_mesh_right_ref
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_right:
-            mano_data = [key.value for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+            mano_data = [key.value for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
         else:
-            mano_data = [key.value for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+            mano_data = [key.value for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
         shape_info["shape"] = mano_data
         return shape_info
 
@@ -1239,11 +1337,11 @@ class VIEW3D_OT_ApplyShape(bpy.types.Operator):
                 shapekeys = entry.get("shape")
                 # Apply the shapekeys
                 if mesh_right:
-                    right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+                    right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
                     for i, key_right in enumerate(right_hand_shape_keys):
                         key_right.value = shapekeys[i]
                 if mesh_left:
-                    left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+                    left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
                     for i, key_left in enumerate(left_hand_shape_keys):
                         key_left.value = shapekeys[i]
                 bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
@@ -1303,7 +1401,7 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
         curr_hide = armature.hide_get()
         armature.hide_set(False)
         context.view_layer.objects.active = armature
-        current_mode = bpy.context.mode
+        current_mode = context.object.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
             # if bone_collection and bone.name not in bone_collection.bones:
@@ -1359,7 +1457,7 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
         curr_hide = armature.hide_get()
         armature.hide_set(False)
         context.view_layer.objects.active = armature
-        current_mode = context.mode
+        current_mode = context.object.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
             if bone_collection and bone.name not in bone_collection.bones:
@@ -1555,7 +1653,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     def get_armature_data(self, context, export_armatures, matrix_world):
         armature_data = []
         active_curr = context.view_layer.objects.active
-        current_mode = context.mode
+        current_mode = context.object.mode
         for export in export_armatures:
             armature = export.arm_ref
             if not armature:
@@ -1591,9 +1689,9 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             for obj in armature.children:
                 if obj.type == 'MESH' and obj.data.shape_keys:
                     if obj.vertex_groups["MANO_RIGHT_HAND"]:
-                        shape_info["right_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+                        shape_info["right_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
                     elif obj.vertex_groups["MANO_LEFT_HAND"]:
-                        shape_info["left_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+                        shape_info["left_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
             mano_data.append(shape_info)
         return mano_data
 
@@ -1828,12 +1926,12 @@ class VIEW3D_OT_ResetMeshShape(bpy.types.Operator):
     def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
-            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
             for key_right in right_hand_shape_keys:
                 key_right.value = 0.0
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
-            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
             for key_left in left_hand_shape_keys:
                 key_left.value = 0.0
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
@@ -1858,19 +1956,19 @@ class VIEW3D_OT_RandomMeshShape(bpy.types.Operator):
         mesh_right = context.scene.deformable_mesh_right_ref
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_right and mesh_left:
-            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
-            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
             if len(right_hand_shape_keys) != len(left_hand_shape_keys):
                 self.report({'ERROR'}, "Meshes have different number of hand shape keys")
             for key_right, key_left in zip(right_hand_shape_keys, left_hand_shape_keys):
                 key_right.value = key_left.value = random.gauss(0.0, context.scene.std_slider)
         else:
             if mesh_right:
-                right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+                right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
                 for key_right in right_hand_shape_keys:
                     key_right.value = random.gauss(0.0, context.scene.std_slider)
             if mesh_left:
-                left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+                left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
                 for key_left in left_hand_shape_keys:
                     key_left.value = random.gauss(0.0, context.scene.std_slider)
         bpy.ops.view3d.update_joint_positions('EXEC_DEFAULT')
@@ -1894,12 +1992,12 @@ class VIEW3D_OT_ShapeKeyframe(bpy.types.Operator):
     def execute(self, context):
         mesh_right = context.scene.deformable_mesh_right_ref
         if mesh_right:
-            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('ShapeRIGHT_')]
+            right_hand_shape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
             for key in right_hand_shape_keys:
                 key.keyframe_insert(data_path="value")
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
-            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('ShapeLEFT_')]
+            left_hand_shape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
             for key in left_hand_shape_keys:
                 key.keyframe_insert(data_path="value")
         return{'FINISHED'}
@@ -1953,7 +2051,7 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                     self.report({'ERROR'}, f"Couldn't find MANO_RIGHT.npz file.\nPlease provide a valid path in the MANO Hand panel")
                     return{'CANCELLED'}
                 self.J_regressor_right = lm.load_regressor(str(mano_path))
-            update_joint_positions(mesh_right.parent, self.J_regressor_right, vertices, context)
+            update_joint_positions(mesh_right.parent, self.J_regressor_right, vertices, context, "RIGHT_")
         
         mesh_left = context.scene.deformable_mesh_left_ref
         if mesh_left:
@@ -1983,7 +2081,7 @@ class VIEW3D_OT_UpdateJointPositions(bpy.types.Operator):
                     self.report({'ERROR'}, f"Couldn't find MANO_LEFT.npz file.\nPlease provide a valid path in the MANO Hand panel")
                     return{'CANCELLED'}
                 self.J_regressor_left = lm.load_regressor(str(mano_path))
-            update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context)
+            update_joint_positions(mesh_left.parent, self.J_regressor_left, vertices, context, "LEFT_")
         
         return{'FINISHED'}
 
@@ -2237,6 +2335,7 @@ class VIEW3D_PT_Pose(bpy.types.Panel):
         layout_rand = layout_rand_row.split(factor=0.7, align=True)
         layout_rand.operator(VIEW3D_OT_GeneratePose.bl_idname)
         layout_rand.operator(VIEW3D_OT_ResetPose.bl_idname)
+        layout.operator(VIEW3D_OT_PoseShapes.bl_idname)
         layout.operator(VIEW3D_OT_ArmatureKeyframe.bl_idname)
         
         layout.separator(type='LINE')
@@ -2425,6 +2524,7 @@ classes = (
     VIEW3D_OT_RenameShape,
     VIEW3D_OT_ApplyShape,
     VIEW3D_OT_DeleteShape,
+    VIEW3D_OT_PoseShapes,
     VIEW3D_OT_ArmatureKeyframe,
     VIEW3D_OT_RandomMeshShape,
     VIEW3D_OT_ResetMeshShape,
