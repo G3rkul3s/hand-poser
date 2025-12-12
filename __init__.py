@@ -43,6 +43,8 @@ def reload_modules():
     # print("reloading")
     reload(lm)
 
+# TODO: detect the hand position and scale inside camera view and crop it
+
 # TODO: delete all print statements
 # TODO: delete me later ???
 """def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
@@ -295,14 +297,24 @@ bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
     default='RIGHT',
 )
 
-bpy.types.Scene.file_extension_selection = bpy.props.EnumProperty(
+bpy.types.Scene.export_style = bpy.props.EnumProperty(
     name="",
-    description="File extension",
+    description="", # TODO: add descr
     items=[
-        ('JSON', ".json", "Export to .json"),
-        # ('FBS', ".fbs", "Export to .fbs")
+        ('VERB', "Verbose", "Each metadata parameter is saved explicitly"),
+        ('COMP', "Compact (HanCo Style)", "Metadata is saved with minimal explanation, similar to the HanCo dataset"),
     ],
-    default='JSON',
+    default='VERB',
+)
+
+bpy.types.Scene.resolution_type = bpy.props.EnumProperty(
+    name="",
+    description="",
+    items=[
+        ('CUSTOM', "Custom", "Ignore camera's native resolution and use the one provided by the user"),
+        ('CAMERA', "Camera Specific", "Use the native camera resolution"),
+    ],
+    default='CAMERA',
 )
 
 bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
@@ -417,7 +429,7 @@ bpy.types.Scene.armature_ref = bpy.props.PointerProperty(
 bpy.types.Scene.use_poseshapes = bpy.props.BoolProperty(
     name="Corrective Pose Shapes",
     description="Enable/disable corrective pose shapes",
-    default=True,
+    default=False,
 )
 
 bpy.types.Scene.deformable_mesh_right_ref = bpy.props.PointerProperty(
@@ -516,17 +528,8 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         if not save_folder:
             self.report({'ERROR'}, "Save folder not selected")
             return {'CANCELLED'}
-        # Create folder where rendered images are saved if it doesn't exists
         render_type = context.scene.light_selection
-        if render_type == 'RGB':
-            rgb_path = Path(bpy.path.abspath(save_folder), "rgb")
-            rgb_path.mkdir(exist_ok=True)
-        elif render_type == 'IR':
-            ir_path = Path(bpy.path.abspath(save_folder), "infrared")
-            ir_path.mkdir(exist_ok=True)
-        elif render_type == 'DEPTH':
-            depth_path = Path(bpy.path.abspath(save_folder), "depth")
-            depth_path.mkdir(exist_ok=True)
+        export_style = context.scene.export_style
         '''
         # Set up multiview render
         # NOTE: disabled for now
@@ -559,12 +562,42 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         if len(cameras) == 0:
             self.report({'WARNING'}, f"No suitable camera was found for rendering in '{render_type}' mode")
             return {'CANCELLED'}
+        # Create folder where rendered images are saved if it doesn't exists
+        if render_type == 'RGB':
+            rgb_path = Path(bpy.path.abspath(save_folder), "rgb", "0000") # TODO: unharcode 0000
+            rgb_path.mkdir(parents=True, exist_ok=True)
+            rgb_cam_path = []
+            if export_style == 'COMP':
+                for i in range(len(cameras)):
+                    rgb_cam_path.append(Path(rgb_path, f"cam{i}"))
+                    rgb_cam_path[i].mkdir(exist_ok=True)
+        elif render_type == 'IR':
+            ir_path = Path(bpy.path.abspath(save_folder), "infrared")
+            ir_path.mkdir(exist_ok=True)
+            ir_cam_path = []
+            if export_style == 'COMP':
+                for i in range(len(cameras)):
+                    ir_cam_path.append(Path(ir_path, f"cam{i}"))
+                    ir_cam_path[i].mkdir(exist_ok=True)
+        elif render_type == 'DEPTH':
+            depth_path = Path(bpy.path.abspath(save_folder), "depth")
+            depth_path.mkdir(exist_ok=True)
+            depth_cam_path = []
+            if export_style == 'COMP':
+                for i in range(len(cameras)):
+                    depth_cam_path.append(Path(depth_path, f"cam{i}"))
+                    depth_cam_path[i].mkdir(exist_ok=True)
+        
         # Iterate over all frames
         current_frame = context.scene.frame_current
-        for i in range(context.scene.frame_start, context.scene.frame_end+1):
+        current_resolution_x = bpy.context.scene.render.resolution_x
+        current_resolution_y = bpy.context.scene.render.resolution_y
+        frame_start = context.scene.frame_start
+        frame_end = context.scene.frame_end
+        for i in range(frame_start, frame_end+1):
             context.scene.frame_set(i)
             # Iterate over all cameras
-            for camera in cameras:
+            for k, camera in enumerate(cameras):
                 # Turn on the ir-lights only for the current sensor
                 if render_type == 'IR':
                     sensor = camera.parent
@@ -575,19 +608,31 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                             light.hide_render = True
                 context.scene.camera = camera
                 if render_type == 'RGB':
-                    context.scene.render.filepath = str(Path(rgb_path, f"Frame_{i:06}_" + camera.name))
+                    if export_style == 'COMP':
+                        context.scene.render.filepath = str(Path(rgb_cam_path[k], f"{i - frame_start:08}"))
+                    else:
+                        context.scene.render.filepath = str(Path(rgb_path, f"Frame_{i:06}_" + camera.name))
                 elif render_type == 'IR':
-                    context.scene.render.filepath = str(Path(ir_path, f"Frame_{i:06}_" + camera.name))
+                    if export_style == 'COMP':
+                        context.scene.render.filepath = str(Path(ir_cam_path[k], f"{i - frame_start:08}"))
+                    else:
+                        context.scene.render.filepath = str(Path(ir_path, f"Frame_{i:06}_" + camera.name))
                 elif render_type == 'DEPTH':
-                    context.scene.render.filepath = str(Path(depth_path, f"Frame_{i:06}_" + camera.name))
+                    if export_style == 'COMP':
+                        context.scene.render.filepath = str(Path(depth_cam_path[k], f"{i - frame_start:08}"))
+                    else:
+                        context.scene.render.filepath = str(Path(depth_path, f"Frame_{i:06}_" + camera.name))
+                # Adjust the resolution per camera
+                if context.scene.resolution_type == 'CAMERA':
+                    bpy.context.scene.render.resolution_x = camera["resolution x"]
+                    bpy.context.scene.render.resolution_y = camera["resolution y"]
                 # Invoke render
-                # bpy.ops.render.render(write_still=True)
+                bpy.ops.render.render(write_still=True)
         for light in lights:
             light.hide_render = False
         context.scene.frame_set(current_frame)
-
-        # context.scene.render.filepath = bpy.path.abspath(folder + "Frame_")
-        # bpy.ops.render.render(animation=True)
+        bpy.context.scene.render.resolution_x = current_resolution_x
+        bpy.context.scene.render.resolution_y = current_resolution_y
         self.report({'INFO'}, "Render successfully saved")
         return {'FINISHED'}
 
@@ -598,7 +643,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
     bl_description="Add a sensor to the scene"
     bl_options = {'REGISTER', 'UNDO'}
     
-    def add_camera_properties(self, camera, rgb=True, ir=False, depth=True):
+    def add_camera_properties(self, camera, resolution_x, resolution_y, rgb=True, ir=False, depth=True):
         camera["in use"] = True
         camera.id_properties_ui("in use").update(
             description="Should this camera be used for rendering",
@@ -618,6 +663,18 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         camera.id_properties_ui("depth").update(
             description="Does this camera support rendering in depth mode",
             default=True,
+        )
+        camera["resolution x"] = resolution_x
+        camera.id_properties_ui("resolution x").update(
+            description="Output resolution X",
+            min=4,
+            max=65536,
+        )
+        camera["resolution y"] = resolution_y
+        camera.id_properties_ui("resolution y").update(
+            description="Output resolution Y",
+            min=4,
+            max=65536,
         )
     
     def new_leap_camera(self, cam_name="Camera"):
@@ -679,7 +736,6 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         if not target_collection:
             target_collection = bpy.data.collections.new(collection_name)
             context.scene.collection.children.link(target_collection)
-        
         if context.scene.sensor_type == 'LEAPSTEREO':
             base_name = "LeapStereoIR"
             index = 1
@@ -696,6 +752,8 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             # Import the camera model
             bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/UltraleapStereoIR170Casing.obj'), check_existing=True)
             imported_object = bpy.context.selected_objects[0]
+            context.collection.objects.unlink(imported_object)
+            target_collection.objects.link(imported_object)
             imported_object.parent = empty
             imported_object.name = f"{base_name}Casing"
 
@@ -706,7 +764,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_left_obj.parent = empty
             cam_left_obj.location = (-0.032, 0.0, 0.0)
             cam_left_obj.scale = (0.2, 0.2, 0.2)
-            self.add_camera_properties(cam_left_obj, rgb=False, ir=True)
+            self.add_camera_properties(cam_left_obj, 384, 384, rgb=False, ir=True)
             target_collection.objects.link(cam_left_obj)
             
             # render = context.scene.render
@@ -724,7 +782,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_right_obj.parent = empty
             cam_right_obj.location = (0.032, 0.0, 0.0)
             cam_right_obj.scale = (0.2, 0.2, 0.2)
-            self.add_camera_properties(cam_right_obj, rgb=False, ir=True)
+            self.add_camera_properties(cam_right_obj, 384, 384, rgb=False, ir=True)
             target_collection.objects.link(cam_right_obj)
             
             # cam_right_name = f"Camera_{base_name}_{index:03}_Right"
@@ -781,6 +839,8 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             # Import the camera model
             bpy.ops.wm.obj_import(filepath= str(ROOT_DIR / 'data/FemtoBoltCasing.obj'), check_existing=True)
             imported_object = bpy.context.selected_objects[0]
+            context.collection.objects.unlink(imported_object)
+            target_collection.objects.link(imported_object)
             imported_object.parent = empty
             imported_object.name = f"{base_name}Casing"
 
@@ -791,7 +851,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_obj.parent = empty
             cam_obj.location = (0.03, 0.0, -0.025)
             cam_obj.scale = (0.2, 0.2, 0.2)
-            self.add_camera_properties(cam_obj, rgb=True, ir=False)
+            self.add_camera_properties(cam_obj, 1920, 1080, rgb=True, ir=False)
             target_collection.objects.link(cam_obj)
 
             empty.location = context.scene.cursor.location
@@ -1148,6 +1208,21 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
         load_poses_from_file(self, context)
         return {'FINISHED'}
 
+
+def get_posesable_meshes(armature):
+    mesh_right = None
+    mesh_left = None
+    mesh_smplx = None
+    for child in armature.children:
+        if child.type == 'MESH' and child.data.shape_keys:
+            if child.vertex_groups.get("MANO_RIGHT_HAND"):
+                mesh_right = child
+            if child.vertex_groups.get("MANO_LEFT_HAND"):
+                mesh_left = child
+            if child.name.startswith('SMPLX-mesh'):
+                mesh_smplx = child
+    return mesh_right, mesh_left, mesh_smplx
+
 # Based on SMPL-X add-on implementation
 def rodrigues_from_pose(armature, bone_name):
     # Use quaternion mode for all bone rotations
@@ -1170,7 +1245,6 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         try:
-            # Enable button only if mesh is active object and parent is armature
             return (context.scene.armature_ref)
         except: return False
 
@@ -1194,20 +1268,10 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
         mat_rots = [self.rodrigues_to_mat(rod_rot) for rod_rot in rod_rots]
         bshapes = np.concatenate([(mat_rot - np.eye(3)).ravel() for mat_rot in mat_rots[1:]])
         return(bshapes)
-    
+
     def execute(self, context):
         armature = context.scene.armature_ref
-        mesh_right = None
-        mesh_left = None
-        mesh_smplx = None
-        for child in armature.children:
-            if child.type == 'MESH' and child.data.shape_keys:
-                if child.vertex_groups.get("MANO_RIGHT_HAND"):
-                    mesh_right = child
-                if child.vertex_groups.get("MANO_LEFT_HAND"):
-                    mesh_left = child
-                if child.name.startswith('SMPLX-mesh'):
-                    mesh_smplx = child
+        mesh_right, mesh_left, mesh_smplx = get_posesable_meshes(armature)
         
         if mesh_smplx:
             pose = [0.0] * (NUM_SMPLX_JOINTS * 3)
@@ -1257,7 +1321,7 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
 
             # Set weights for pose corrective shape keys
             for index, weight in enumerate(poseweights):
-                mesh_left.data.shape_keys.key_blocks[f"MANOPoseRIGHT_{index+1}"].value = weight
+                mesh_left.data.shape_keys.key_blocks[f"MANOPoseLEFT_{index+1}"].value = weight
 
         return {'FINISHED'}
 
@@ -1495,7 +1559,25 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
                     obj.keyframe_insert(data_path="hide_render")
                     
             context.scene.frame_set(current_frame)
+        
+        if context.scene.use_poseshapes:
+            bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
+            mesh_right, mesh_left, mesh_smplx = get_posesable_meshes(armature)
 
+            # Keyframe the poseshape keys
+            if mesh_smplx:
+                smplx_poseshape_keys = [key for key in mesh_smplx.data.shape_keys.key_blocks if key.name.startswith('Pose')]
+                for key in smplx_poseshape_keys:
+                    key.keyframe_insert(data_path="value")
+            if mesh_right:
+                mano_right_poseshape_keys = [key for key in mesh_right.data.shape_keys.key_blocks if key.name.startswith('MANOPoseRIGHT_')]
+                for key in mano_right_poseshape_keys:
+                    key.keyframe_insert(data_path="value")
+            if mesh_left:
+                mano_left_poseshape_keys = [key for key in mesh_left.data.shape_keys.key_blocks if key.name.startswith('MANOPoseLEFT_')]
+                for key in mano_left_poseshape_keys:
+                    key.keyframe_insert(data_path="value")
+        
         bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
@@ -1687,6 +1769,11 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
         end_frame = self.i - self.spacing - 1
         if end_frame > context.scene.frame_end:
             context.scene.frame_end = end_frame
+        
+        # Apply corrective poseshapes for the inbetween frames
+        # if context.scene.use_poseshapes:
+        #     bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
+        
         context.scene.frame_current = current_frame
 
         return {'FINISHED'}
@@ -1697,40 +1784,80 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     bl_label = "Export Metadata"
     bl_description="Export sensor and hand metadata"
 
-    def get_sensors_data(self, context, sensor_collection, matrix_world):
+    def get_sensors_data(self, context, cameras, matrix_world):
         # TODO: detect hand visibility, bool "{armature bone_col} in frame"
         sensors_data = []
-        for obj in sensor_collection.objects:
-            if obj.type == 'CAMERA':
-                location = matrix_world @ obj.matrix_world.to_translation()
-                rotation = obj.matrix_world.to_quaternion()
-                sens_info = {
-                    "name": obj.name,
-                    "location": list(location),
-                    "rotation_quaternion": list(rotation),
-                }
-                sensors_data.append(sens_info)
+        for camera in cameras:
+            location = matrix_world @ camera.matrix_world.to_translation()
+            rotation = camera.matrix_world.to_quaternion()
+            sens_info = {
+                "name": camera.name,
+                "location": list(location),
+                "rotation_quaternion": list(rotation),
+            }
+            sensors_data.append(sens_info)
         return sensors_data
 
-    def get_bone_data(self, bone, matrix_world, armature_world, max_noise):
+    def get_cameras_extrinsic(self, context, cameras, matrix_world):
+        data = []
+        for camera in cameras:
+            data.append([list(row) for row in (matrix_world @ camera.matrix_world.copy()).inverted()])
+        return data
+
+    def get_cameras_intrinsic(self, context, cameras):
+        data = []
+        scene = context.scene
+        
+        for camera in cameras:
+            camd = camera.data
+            # render resolution
+            W = scene.render.resolution_x
+            H = scene.render.resolution_y
+            # pixel-aspect ratio
+            aspect = scene.render.pixel_aspect_x / scene.render.pixel_aspect_y
+            # focal in mm
+            f_mm = camd.lens
+            # sensor sizes
+            sensor_w = camd.sensor_width
+            sensor_h = camd.sensor_height
+            if camd.sensor_fit == 'VERTICAL':
+                f_x = (f_mm / sensor_w) * W * aspect
+                f_y = (f_mm / sensor_h) * H
+            else:  # 'HORIZONTAL' or AUTO
+                f_x = (f_mm / sensor_w) * W
+                f_y = (f_mm / sensor_h) * H / aspect
+            c_x = W / 2.0
+            c_y = H / 2.0
+            data.append([
+                [f_x,   0,   c_x],
+                [0,   f_y,   c_y],
+                [0,     0,     1]
+            ])
+        return data
+    
+    def get_bone_data(self, bone, matrix_world, armature_world, max_noise, root):
         location = matrix_world @ (armature_world @ bone.head)
         noise = Vector((
-            random.uniform(0.0, max_noise),
-            random.uniform(0.0, max_noise),
-            random.uniform(0.0, max_noise)
+            random.uniform(-max_noise, max_noise),
+            random.uniform(-max_noise, max_noise),
+            random.uniform(-max_noise, max_noise)
         ))
         location = location + noise
         bone_info = {}
         bone_info["name"] = bone.name
         bone_info["location"] = list(location)
         bone.rotation_mode = 'QUATERNION'
-        bone_info["rotation_quaternion"] = list((armature_world @ bone.matrix).to_quaternion())
+        # Use global rotation if the bone is root, everything else is relative
+        bone_info["rotation_quaternion"] = list(bone.rotation_quaternion if not root 
+                                                else (matrix_world @ (armature_world @ bone.matrix)).to_quaternion())
         return bone_info
 
     def get_armature_data(self, context, export_armatures, matrix_world):
         armature_data = []
         active_curr = context.view_layer.objects.active
-        current_mode = context.object.mode
+        current_mode = 'OBJECT'
+        if context.object:
+            current_mode = context.object.mode
         max_noise = context.scene.jitter
         for export in export_armatures:
             armature = export.arm_ref
@@ -1747,7 +1874,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             for bone in armature.pose.bones:
                 if bone_collection and bone.name not in bone_collection.bones:
                     continue
-                bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world, max_noise)
+                bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world, max_noise, bone.parent is None)
                 armature_info["joints"].append(bone_info)
             armature_data.append(armature_info)
         bpy.ops.object.mode_set(mode=current_mode)
@@ -1766,9 +1893,9 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             shape_info["left_hand_shape"] = []
             for obj in armature.children:
                 if obj.type == 'MESH' and obj.data.shape_keys:
-                    if obj.vertex_groups["MANO_RIGHT_HAND"]:
+                    if obj.vertex_groups.get("MANO_RIGHT_HAND"):
                         shape_info["right_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
-                    elif obj.vertex_groups["MANO_LEFT_HAND"]:
+                    elif obj.vertex_groups.get("MANO_LEFT_HAND"):
                         shape_info["left_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
             mano_data.append(shape_info)
         return mano_data
@@ -1779,12 +1906,27 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         if not save_folder:
             self.report({'ERROR'}, "No save folder provided")
             return {'CANCELLED'}
-        # Create metadata folder if it doesn't exists
-        meta_path = Path(bpy.path.abspath(save_folder), "metadata")
-        meta_path.mkdir(exist_ok=True)
+        render_type = context.scene.light_selection
 
         sensor_collection = bpy.data.collections.get('Sensors')
         export_armatures = context.scene.export_arm
+
+        cameras = []
+        try:
+            if render_type == 'RGB':
+                cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA' and obj["in use"] and obj["color"]]
+            elif render_type == 'IR':
+                cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA' and obj["in use"] and obj["infrared"]]
+            elif render_type == 'DEPTH':
+                cameras = [obj for obj in sensor_collection.objects if obj.type == 'CAMERA' and obj["in use"] and obj["depth"]]
+        except KeyError as e:
+            self.report({'ERROR'}, 
+                        f"{repr(e)}\nA camera is missing one or all of the custom properties {{'in use', 'color', 'infrared', 'depth'}}")
+            return{'CANCELLED'}
+        if len(cameras) == 0:
+            self.report({'WARNING'}, f"No suitable camera was found for exporting it's parameters in '{render_type}' mode")
+            return {'CANCELLED'}
+        
         # Get the reference frame
         origin = context.scene.origin_ref
         if origin:
@@ -1793,19 +1935,117 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             matrix_world = (trans @ rot).inverted()
         else:
             matrix_world = Matrix.Translation(Vector((0,0,0)))
+        
+        # Create metadata folder if it doesn't exists
+        if context.scene.export_style == 'VERB':
+                meta_path = Path(bpy.path.abspath(save_folder), "metadata")
+                meta_path.mkdir(exist_ok=True)
+        elif context.scene.export_style == 'COMP':
+                calib_path = Path(bpy.path.abspath(save_folder), "calib", "0000") # TODO: unhardcode
+                calib_path.mkdir(parents=True, exist_ok=True)
+                shape_path = Path(bpy.path.abspath(save_folder), "shape", "0000")
+                shape_path.mkdir(parents=True, exist_ok=True)
+                xyz_path = Path(bpy.path.abspath(save_folder), "xyz", "0000")
+                xyz_path.mkdir(parents=True, exist_ok=True)
+
         # Iterate over all frames
         current_frame = context.scene.frame_current
         for i in range(context.scene.frame_start, context.scene.frame_end+1):
             context.scene.frame_set(i)
-            mano_data = self.get_mano_shape_data(context, export_armatures)
-            # Get sensor(s) metadata
-            sensors_data = self.get_sensors_data(context, sensor_collection, matrix_world) if sensor_collection else []
-            # Get armature(s) metadata
-            armature_data = self.get_armature_data(context, export_armatures, matrix_world) if len(export_armatures) > 0 else []
-            # Save metadata
-            export_filepath = Path(meta_path, f"Frame_{i:06}.json")
-            with open(export_filepath, 'w') as f:
-                json.dump({"Sensor data":sensors_data, "MANO hand data":mano_data, "Armature data":armature_data}, f, indent=4)
+            if context.scene.export_style == 'VERB':
+                # Get mano metadata
+                mano_data = self.get_mano_shape_data(context, export_armatures)
+                # Get sensor(s) metadata
+                sensors_data = self.get_sensors_data(context, cameras, matrix_world) if cameras else []
+                # Get armature(s) metadata
+                armature_data = self.get_armature_data(context, export_armatures, matrix_world) if len(export_armatures) > 0 else []
+                # Save metadata
+                export_filepath = Path(meta_path, f"Frame_{i:06}.json")
+                with open(export_filepath, 'w') as f:
+                    json.dump({"Sensor data":sensors_data, "MANO hand data":mano_data, "Armature data":armature_data}, f, indent=4)
+            elif context.scene.export_style == 'COMP':
+                # Save camera data
+                camera_params = {"K":[], "M":[]}
+                camera_params["K"] = self.get_cameras_intrinsic(context, cameras)               # intrinsic
+                camera_params["M"] = self.get_cameras_extrinsic(context, cameras, matrix_world) # extrinsic
+                calib_filepath = Path(calib_path, f"{i - current_frame:08}.json")
+                with open(calib_filepath, 'w') as f:
+                    json.dump(camera_params, f)
+                
+                # Save shape data
+                shape_params = {
+                    "shapes" : [],
+                    "poses" : [],     # joint rotations. wrist global other relative (not sure if right)
+                    "global_t" : []  # TODO: investigate why this .shape
+                }
+                # Get the right mesh <! ONLY MANO RIGHT HAND IS SUPPORTED !>
+                mesh_right = None
+                right_armature = None
+                for export in export_armatures:
+                    if right_armature:
+                        break
+                    armature = export.arm_ref
+                    if not armature:
+                        continue
+                    for child in armature.children:
+                        if child.type == 'MESH' and child.data.shape_keys:
+                            if child.vertex_groups.get("MANO_RIGHT_HAND"):
+                                mesh_right = child
+                                shape_params["shapes"] = [[key.value for key in child.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]]
+                                right_armature = armature
+                                break
+                if mesh_right:
+                    # Get armature pose in rodrigues representation
+                    pose = [0.0] * (NUM_MANO_JOINTS * 3)
+                    for index in range(1, NUM_MANO_JOINTS):
+                        joint_name = "RIGHT_" + lm.BONE_NAMES[index]
+                        joint_pose = rodrigues_from_pose(armature, joint_name)
+                        pose[index*3 + 0] = joint_pose[0]
+                        pose[index*3 + 1] = joint_pose[1]
+                        pose[index*3 + 2] = joint_pose[2]
+                    # calculate global rotation for wrist
+                    wrist = armature.pose.bones["RIGHT_" + lm.BONE_NAMES[0]]
+                    quat = (matrix_world @ (armature.matrix_world @ wrist.matrix)).to_quaternion()
+                    (axis, angle) = quat.to_axis_angle()
+                    rodrigues = axis
+                    rodrigues.normalize()
+                    rodrigues = rodrigues * angle
+                    pose[0] = rodrigues[0]
+                    pose[1] = rodrigues[1]
+                    pose[2] = rodrigues[2]
+                    shape_params["poses"] = [pose]
+                    # get wrist global position
+                    shape_params["global_t"] = [[list(matrix_world @ (armature.matrix_world @ wrist.head))]]
+                shape_filepath = Path(shape_path, f"{i - current_frame:08}.json")
+                with open(shape_filepath, 'w') as f:
+                    json.dump(shape_params, f)
+                
+                # Save joint data
+                xyz = []
+                max_noise = context.scene.jitter
+                bone_collection = armature.data.collections.get("RightHand")
+                for bone in armature.pose.bones:
+                    if bone_collection and bone.name in bone_collection.bones:
+                        location = matrix_world @ (armature.matrix_world @ bone.head)
+                        noise = Vector((
+                            random.uniform(-max_noise, max_noise),
+                            random.uniform(-max_noise, max_noise),
+                            random.uniform(-max_noise, max_noise)
+                        ))
+                        location = location + noise
+                        xyz.append(list(location))
+                # reorder to follow HanCo notation
+                wrist  = xyz[0:1]   # Point 0
+                index  = xyz[1:5]   # Points 1-4
+                middle = xyz[5:9]   # Points 5-8
+                pinky  = xyz[9:13]  # Points 9-12
+                ring   = xyz[13:17] # Points 13-16
+                thumb  = xyz[17:21] # Points 17-20
+                xyz = wrist + thumb + index + middle + ring + pinky
+                xyz_filepath = Path(xyz_path, f"{i - current_frame:08}.json")
+                with open(xyz_filepath, 'w') as f:
+                    json.dump(xyz, f)
+
         context.scene.frame_set(current_frame)
         self.report({'INFO'}, "Metadata successfully exported")
         return {'FINISHED'}
@@ -2284,10 +2524,10 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
             context.view_layer.use_pass_mist = False
         return{'FINISHED'}
 
-class VIEW3D_PT_Export(bpy.types.Panel):
+class VIEW3D_PT_ExportSettings(bpy.types.Panel):
     """"""
     bl_label = "Export Settings"
-    bl_idname = "VIEW3D_PT_Export"
+    bl_idname = "VIEW3D_PT_ExportSettings"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Hand Poser'
@@ -2300,12 +2540,20 @@ class VIEW3D_PT_Export(bpy.types.Panel):
         split_save = layout_row.split(factor=0.3, align=True)
         split_save.label(text="Save Folder:")
         split_save.prop(scene, "save_folder")
+        layout_row = layout.row(align=True)
+        split_style = layout_row.split(factor=0.3, align=True)
+        split_style.label(text="Export Style:")
+        split_style.prop(scene, "export_style")
 
         layout.separator(type='LINE')
         layout_row = layout.row(align=True)
         split_light = layout_row.split(factor=0.3, align=True)
         split_light.label(text="Image:")
         split_light.prop(scene, "light_selection")
+        layout_row = layout.row(align=True)
+        split_res = layout_row.split(factor=0.3, align=True)
+        split_res.label(text="Resolution:")
+        split_res.prop(scene, "resolution_type")
         layout_row = layout.row(align=True)
         split_compositing = layout_row.split(factor=0.7, align=True)
         split_compositing.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
@@ -2507,8 +2755,9 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_add.label(text="Type:")
         layout_add.prop(scene, "sensor_type")
         layout_add_col.operator(VIEW3D_OT_AddSensor.bl_idname, icon='ADD')
-        layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
+        # layout.operator(VIEW3D_OT_MoveSensorToOrigin.bl_idname)
         # box_sensor.separator()
+        layout.separator(type="LINE")
         layout_rand_col = layout.column(align=True)
         layout_row = layout_rand_col.row(align=True)
         layout_split = layout_row.split(factor=0.35, align=True)
@@ -2573,10 +2822,7 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
         layout.separator(type="LINE")
         layout.operator(VIEW3D_OT_MultiviewRender.bl_idname, icon="RENDER_ANIMATION")
         # split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
-        layout_row = layout.row(align=True)
-        split_meta = layout_row.split(factor=0.6, align=True)
-        split_meta.operator(VIEW3D_OT_ExportMetadata.bl_idname, icon="EXPORT")
-        split_meta.prop(scene, "file_extension_selection")
+        layout.operator(VIEW3D_OT_ExportMetadata.bl_idname, icon="EXPORT")
 
 classes = (
     VIEW3D_OT_GenerateFrames,
@@ -2613,12 +2859,12 @@ classes = (
     VIEW3D_OT_ShapeKeyframe,
     VIEW3D_OT_AddSensor,
     VIEW3D_OT_ConfigureCompositing,
-    VIEW3D_OT_MoveSensorToOrigin,
+    # VIEW3D_OT_MoveSensorToOrigin,
     VIEW3D_OT_RandomSensorPosition,
     # VIEW3D_OT_RandomSensorRotation,
     VIEW3D_OT_SensorKeyframe,
     VIEW3D_PT_Dataset,
-    VIEW3D_PT_Export,
+    VIEW3D_PT_ExportSettings,
     VIEW3D_PT_MANO_Model,
     VIEW3D_PT_Pose,
     VIEW3D_PT_Shape,
