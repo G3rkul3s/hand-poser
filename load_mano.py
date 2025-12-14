@@ -62,6 +62,23 @@ BONE_PARENTS = {
     BONE_NAMES[9]       : BONE_NAMES[8],
     FINGERTIP_NAMES[4]  : BONE_NAMES[9],
 }
+FINGER_BONES_CHILDREN = {
+    BONE_NAMES[13]      : BONE_NAMES[14],
+    BONE_NAMES[14]      : BONE_NAMES[15],
+    BONE_NAMES[15]      : FINGERTIP_NAMES[0],
+    BONE_NAMES[1]      : BONE_NAMES[2],
+    BONE_NAMES[2]      : BONE_NAMES[3],
+    BONE_NAMES[3]      : FINGERTIP_NAMES[1],
+    BONE_NAMES[4]      : BONE_NAMES[5],
+    BONE_NAMES[5]      : BONE_NAMES[6],
+    BONE_NAMES[6]      : FINGERTIP_NAMES[2],
+    BONE_NAMES[10]      : BONE_NAMES[11],
+    BONE_NAMES[11]      : BONE_NAMES[12],
+    BONE_NAMES[12]      : FINGERTIP_NAMES[3],
+    BONE_NAMES[7]      : BONE_NAMES[8],
+    BONE_NAMES[8]      : BONE_NAMES[9],
+    BONE_NAMES[9]      : FINGERTIP_NAMES[4],
+}
 
 def load_mano_model(hand, mano_path):
     ROOT_DIR = Path(__file__).parent
@@ -122,8 +139,8 @@ def create_joint_armature(mesh, hand, joint_positions, basis):
     bones = {}
 
     for i, name in enumerate(BONE_NAMES):
-        name = f"{hand}_" + name
-        bone = armature_data.edit_bones.new(name)
+        bone_name = f"{hand}_" + name
+        bone = armature_data.edit_bones.new(bone_name)
         head = joint_positions[i]
         x_axis = Vector(basis[i, 6:9]) * -1 # makes the system right handed
         y_axis = Vector(basis[i, 3:6])
@@ -132,7 +149,16 @@ def create_joint_armature(mesh, hand, joint_positions, basis):
         rot = Matrix((x_axis, y_axis, z_axis)).transposed()
         bone.matrix = Matrix.Translation(bone.head) @ rot.to_4x4()
         bone.length = 0.04
-        bones[name] = bone
+        bone.color.palette = 'THEME03'
+        bones[bone_name] = bone
+        # Add corrective bones
+        corr_bone_name = f"corrective_{hand}_" + name
+        corr_bone = armature_data.edit_bones.new(corr_bone_name)
+        corr_bone.head = head
+        corr_bone.tail = head + (0.0, 0.04, 0.0)
+        corr_bone.color.palette = 'THEME05'
+        # corr_bone.hide_select = True
+        corr_bone.parent = bone
 
     # add joints for fingertips
     for name, vert_index in FINGERTIPS.items():
@@ -176,7 +202,8 @@ def add_constraints_to_armature(armature, hand):
     current_mode = bpy.context.mode
     bpy.ops.object.mode_set(mode='POSE')
     
-    root = armature.pose.bones.get(f"{hand}_" + BONE_NAMES[0])
+    bones = armature.pose.bones
+    root = bones.get(f"{hand}_" + BONE_NAMES[0])
     constraint = root.constraints.new('LIMIT_ROTATION')
     constraint.use_limit_x = False
     constraint.use_limit_y = False
@@ -199,7 +226,7 @@ def add_constraints_to_armature(armature, hand):
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
             # Intermadiate
-            bone_1 = bone.children[0]
+            bone_1 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone.name.split(f"{hand}_")[-1]])
             constraint = bone_1.constraints.new('LIMIT_ROTATION')
             constraint.min_x = radians(-80.0)
             constraint.max_x = radians(0.0)
@@ -209,7 +236,7 @@ def add_constraints_to_armature(armature, hand):
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
             # Distal
-            bone_2 = bone_1.children[0]
+            bone_2 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_1.name.split(f"{hand}_")[-1]])
             constraint = bone_2.constraints.new('LIMIT_ROTATION')
             constraint.min_x = radians(-90.0)
             constraint.max_x = radians(20.0)
@@ -219,44 +246,29 @@ def add_constraints_to_armature(armature, hand):
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
             # Tip
-            bone_3 = bone_2.children[0]
+            bone_3 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_2.name.split(f"{hand}_")[-1]])
             constraint = bone_3.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
             constraint.use_limit_y = True
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
-        else:
+        elif bone.name == f"{hand}_" + BONE_NAMES[7]:      # if pinky
             # Proximal
             constraint = bone.constraints.new('LIMIT_ROTATION')
             constraint.min_x = radians(-110.0)
             constraint.max_x = radians(15.0)
+            constraint.min_y = radians(-15.0)
+            constraint.max_y = radians(35.0)
+            constraint.min_z = radians(-20.0)
+            constraint.max_z = radians(0.0)
             constraint.use_limit_x = True
-            if bone.name == f"{hand}_" + BONE_NAMES[7]:      # if pinky
-                constraint.min_y = radians(-15.0)
-                constraint.max_y = radians(35.0)
-                constraint.min_z = radians(-20.0)
-                constraint.max_z = radians(0.0)
-            elif bone.name == f"{hand}_" + BONE_NAMES[10]:   # if ring
-                constraint.min_y = radians(-5.0)
-                constraint.max_y = radians(15.0)
-            elif bone.name == f"{hand}_" + BONE_NAMES[4]:    # if middle
-                constraint.min_y = radians(-5.0)
-                constraint.max_y = radians(15.0)
-                constraint.min_z = radians(-10.0)
-                constraint.max_z = radians(0.0)
-            elif bone.name == f"{hand}_" + BONE_NAMES[1]:    # if index
-                constraint.min_y = radians(-20.0)
-                constraint.max_y = radians(15.0)
-                constraint.min_z = radians(-3.0)
-                constraint.max_z = radians(3.0)
             constraint.use_limit_y = True
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
             # Intermadiate
-            bone_1 = bone.children[0]
+            bone_1 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone.name.split(f"{hand}_")[-1]])
             constraint = bone_1.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
             constraint.min_x = radians(-100.0)
@@ -266,7 +278,7 @@ def add_constraints_to_armature(armature, hand):
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
             # Distal
-            bone_2 = bone_1.children[0]
+            bone_2 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_1.name.split(f"{hand}_")[-1]])
             constraint = bone_2.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
             constraint.min_x = radians(-90.0)
@@ -276,14 +288,146 @@ def add_constraints_to_armature(armature, hand):
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
             # Tip
-            bone_3 = bone_2.children[0]
+            bone_3 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_2.name.split(f"{hand}_")[-1]])
             constraint = bone_3.constraints.new('LIMIT_ROTATION')
             constraint.use_limit_x = True
             constraint.use_limit_y = True
             constraint.use_limit_z = True
             constraint.owner_space = 'LOCAL'
             constraint.use_transform_limit = True
-
+        elif bone.name == f"{hand}_" + BONE_NAMES[10]:   # if ring
+            # Proximal
+            constraint = bone.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = radians(-110.0)
+            constraint.max_x = radians(15.0)
+            constraint.min_y = radians(-5.0)
+            constraint.max_y = radians(15.0)
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Intermadiate
+            bone_1 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone.name.split(f"{hand}_")[-1]])
+            constraint = bone_1.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.min_x = radians(-100.0)
+            constraint.max_x = radians(5.0)
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Distal
+            bone_2 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_1.name.split(f"{hand}_")[-1]])
+            constraint = bone_2.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(6.0)
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Tip
+            bone_3 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_2.name.split(f"{hand}_")[-1]])
+            constraint = bone_3.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+        elif bone.name == f"{hand}_" + BONE_NAMES[4]:    # if middle
+            # Proximal
+            constraint = bone.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = radians(-110.0)
+            constraint.max_x = radians(15.0)
+            constraint.min_y = radians(-5.0)
+            constraint.max_y = radians(15.0)
+            constraint.min_z = radians(-10.0)
+            constraint.max_z = radians(0.0)
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Intermadiate
+            bone_1 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone.name.split(f"{hand}_")[-1]])
+            constraint = bone_1.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.min_x = radians(-100.0)
+            constraint.max_x = radians(5.0)
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Distal
+            bone_2 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_1.name.split(f"{hand}_")[-1]])
+            constraint = bone_2.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(6.0)
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Tip
+            bone_3 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_2.name.split(f"{hand}_")[-1]])
+            constraint = bone_3.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+        elif bone.name == f"{hand}_" + BONE_NAMES[1]:    # if index
+            # Proximal
+            constraint = bone.constraints.new('LIMIT_ROTATION')
+            constraint.min_x = radians(-110.0)
+            constraint.max_x = radians(15.0)
+            constraint.min_y = radians(-20.0)
+            constraint.max_y = radians(15.0)
+            constraint.min_z = radians(-3.0)
+            constraint.max_z = radians(3.0)
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Intermadiate
+            bone_1 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone.name.split(f"{hand}_")[-1]])
+            constraint = bone_1.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.min_x = radians(-100.0)
+            constraint.max_x = radians(5.0)
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Distal
+            bone_2 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_1.name.split(f"{hand}_")[-1]])
+            constraint = bone_2.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.min_x = radians(-90.0)
+            constraint.max_x = radians(6.0)
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+            # Tip
+            bone_3 = bones.get(f"{hand}_" + FINGER_BONES_CHILDREN[bone_2.name.split(f"{hand}_")[-1]])
+            constraint = bone_3.constraints.new('LIMIT_ROTATION')
+            constraint.use_limit_x = True
+            constraint.use_limit_y = True
+            constraint.use_limit_z = True
+            constraint.owner_space = 'LOCAL'
+            constraint.use_transform_limit = True
+    # Add constraints to corretive bones to prevent accidental changes
+    for bone_name in BONE_NAMES:
+        bone = bones.get(f"corrective_{hand}_" + bone_name)
+        bone.bone.hide = True
+        constraint = bone.constraints.new('LIMIT_ROTATION')
+        constraint.use_limit_x = True
+        constraint.use_limit_y = True
+        constraint.use_limit_z = True
+        constraint.owner_space = 'LOCAL'
     bpy.ops.object.mode_set(mode=current_mode)
 
 def load_mano_hand(hand: str, mano_path):

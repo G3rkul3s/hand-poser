@@ -511,6 +511,14 @@ bpy.types.Scene.list_attachments = bpy.props.EnumProperty(
     items=get_visibility_attachments,
 )
 
+bpy.types.Scene.sequence_id = bpy.props.IntProperty(
+        name="Sequence ID",
+        description="",
+        default=0,
+        min=0,
+        soft_max=9999,
+    )
+
 class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
     """"""
     bl_idname = "view3d.multiview_render"
@@ -564,7 +572,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             return {'CANCELLED'}
         # Create folder where rendered images are saved if it doesn't exists
         if render_type == 'RGB':
-            rgb_path = Path(bpy.path.abspath(save_folder), "rgb", "0000") # TODO: unharcode 0000
+            rgb_path = Path(bpy.path.abspath(save_folder), "rgb", f"{context.scene.sequence_id:04}")
             rgb_path.mkdir(parents=True, exist_ok=True)
             rgb_cam_path = []
             if export_style == 'COMP':
@@ -1208,7 +1216,6 @@ class VIEW3D_OT_DeletePose(bpy.types.Operator):
         load_poses_from_file(self, context)
         return {'FINISHED'}
 
-
 def get_posesable_meshes(armature):
     mesh_right = None
     mesh_left = None
@@ -1229,7 +1236,32 @@ def rodrigues_from_pose(armature, bone_name):
     if armature.pose.bones[bone_name].rotation_mode != 'QUATERNION':
         armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
 
-    quat = armature.pose.bones[bone_name].rotation_quaternion
+    if bone_name.startswith('corrective_'):
+        parent_bone_name = bone_name.split('corrective_')[-1]
+        pose_bones = armature.pose.bones
+        data_bones = armature.data.bones
+        # 1. Get the Parent's Local Rotation 
+        # This ignores the Root and all in-between bones.
+        # We use matrix_basis to get the rotation directly from the sliders/drivers.
+        parent_local_matrix = pose_bones[parent_bone_name].matrix_basis
+        
+        # 2. Get the Fixed Difference between Parent and Child (Rest Pose)
+        # We need to know how the Child is angled relative to the Parent in Edit Mode.
+        m_rest_parent = data_bones[parent_bone_name].matrix_local
+        m_rest_child = data_bones[bone_name].matrix_local
+        
+        # "Difference" = How to get from Parent to Child
+        m_diff = m_rest_parent.inverted() @ m_rest_child
+        
+        # 3. Convert Parent Rotation to Child's Axis
+        # Logic: Go from Child to Parent -> Apply Parent Rot -> Go back to Child
+        child_local_rotation_matrix = m_diff.inverted() @ parent_local_matrix @ m_diff
+        
+        # 4. Extract Output
+        quat = child_local_rotation_matrix.to_quaternion()
+    else:
+        quat = armature.pose.bones[bone_name].rotation_quaternion
+    
     (axis, angle) = quat.to_axis_angle()
     rodrigues = axis
     rodrigues.normalize()
@@ -1294,7 +1326,7 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
             pose = [0.0] * (NUM_MANO_JOINTS * 3)
             
             for index in range(NUM_MANO_JOINTS):
-                joint_name = "RIGHT_" + lm.BONE_NAMES[index]
+                joint_name = "corrective_RIGHT_" + lm.BONE_NAMES[index]
                 joint_pose = rodrigues_from_pose(armature, joint_name)
                 pose[index*3 + 0] = joint_pose[0]
                 pose[index*3 + 1] = joint_pose[1]
@@ -1311,7 +1343,7 @@ class VIEW3D_OT_PoseShapes(bpy.types.Operator):
             pose = [0.0] * (NUM_MANO_JOINTS * 3)
             
             for index in range(NUM_MANO_JOINTS):
-                joint_name = "LEFT_" + lm.BONE_NAMES[index]
+                joint_name = "corrective_LEFT_" + lm.BONE_NAMES[index]
                 joint_pose = rodrigues_from_pose(armature, joint_name)
                 pose[index*3 + 0] = joint_pose[0]
                 pose[index*3 + 1] = joint_pose[1]
@@ -1615,14 +1647,14 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
         armature.hide_set(curr_hide)
         return {'FINISHED'}
 
-def export_get_bone_colllections(self, context):
-    items = [("ALL", "All", "Use the whole armature")]
-    armature = self.arm_ref
-    if armature and armature.type == 'ARMATURE':
-        items.extend([(bc.name, bc.name, f"Export {bc.name} collection") for bc in armature.data.collections])
-    return items
-
 class ExportArmatureGroup(bpy.types.PropertyGroup):
+    def export_get_bone_colllections(self, context):
+        items = [("ALL", "All", "Use the whole armature")]
+        armature = self.arm_ref
+        if armature and armature.type == 'ARMATURE':
+            items.extend([(bc.name, bc.name, f"Export {bc.name} collection") for bc in armature.data.collections])
+        return items
+    
     arm_ref: bpy.props.PointerProperty(
         name="",
         type=bpy.types.Object,
@@ -1660,6 +1692,14 @@ class VIEW3D_OT_RemoveExportArmature(bpy.types.Operator):
         return {'FINISHED'}
 
 class PoseArmatureGroup(bpy.types.PropertyGroup):
+
+    def pose_get_bone_colllections(self, context):
+        items = [("ALL", "All", "Use the whole armature")]
+        armature = self.arm_ref
+        if armature and armature.type == 'ARMATURE':
+            items.extend([(bc.name, bc.name, f"Export {bc.name} collection") for bc in armature.data.collections])
+        return items
+    
     arm_ref: bpy.props.PointerProperty(
         name="",
         type=bpy.types.Object,
@@ -1670,7 +1710,7 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
     bone_col: bpy.props.EnumProperty(
         name="",
         description="Bone collection",
-        items=export_get_bone_colllections,
+        items=pose_get_bone_colllections,
     ) # type: ignore
 
     group: bpy.props.IntProperty(
@@ -1941,11 +1981,11 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 meta_path = Path(bpy.path.abspath(save_folder), "metadata")
                 meta_path.mkdir(exist_ok=True)
         elif context.scene.export_style == 'COMP':
-                calib_path = Path(bpy.path.abspath(save_folder), "calib", "0000") # TODO: unhardcode
+                calib_path = Path(bpy.path.abspath(save_folder), "calib", f"{context.scene.sequence_id:04}")
                 calib_path.mkdir(parents=True, exist_ok=True)
-                shape_path = Path(bpy.path.abspath(save_folder), "shape", "0000")
+                shape_path = Path(bpy.path.abspath(save_folder), "shape", f"{context.scene.sequence_id:04}")
                 shape_path.mkdir(parents=True, exist_ok=True)
-                xyz_path = Path(bpy.path.abspath(save_folder), "xyz", "0000")
+                xyz_path = Path(bpy.path.abspath(save_folder), "xyz", f"{context.scene.sequence_id:04}")
                 xyz_path.mkdir(parents=True, exist_ok=True)
 
         # Iterate over all frames
@@ -2544,6 +2584,7 @@ class VIEW3D_PT_ExportSettings(bpy.types.Panel):
         split_style = layout_row.split(factor=0.3, align=True)
         split_style.label(text="Export Style:")
         split_style.prop(scene, "export_style")
+        layout.prop(scene, "sequence_id")
 
         layout.separator(type='LINE')
         layout_row = layout.row(align=True)

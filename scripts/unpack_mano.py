@@ -40,7 +40,6 @@ with open(PKL_PATH + 'MANO_LEFT.pkl', 'rb') as f:
     shapedirs_left = np.transpose(shapedirs_left_np, (2, 0, 1))
     posedirs_left = data_left['posedirs']
     posedirs_left_np = posedirs_left.copy()
-    posedirs_left_np[:, 0, :] *= -1                             # fixes a posedirs bug
     posedirs_left = np.transpose(posedirs_left_np, (2, 0, 1))
     faces_left = data_left['f']
     joints_left = data_left['J']
