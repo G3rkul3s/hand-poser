@@ -87,6 +87,13 @@ def compositing_error(self, context):
 def sensor_collection_error(self, context):
     self.layout.label(text='"Sensors" collection not found')
 
+def export_hanco_warning(self, context):
+    self.layout.label(text='This export style is supported only for MANO right hand')
+
+def display_export_hanco_warning(self, context):
+    if self.export_style == 'COMP':
+        bpy.context.window_manager.popup_menu(export_hanco_warning, title="Warning", icon='ERROR')
+
 def update_light_selection(self, context):
     """
     This function is called whenever 'light_selection' changes.
@@ -130,36 +137,50 @@ def update_joint_positions(armature_obj, J_regressor, vert_shaped, context, hand
     joints = J_regressor @ vert_shaped # shape (16, 3)
     active_curr = context.view_layer.objects.active
     context.view_layer.objects.active = armature_obj
-    current_mode = context.object.mode
+    if active_curr:
+        current_mode = context.object.mode
     bpy.ops.object.mode_set(mode='EDIT')
     edit_bones = armature_obj.data.edit_bones
 
     for i, name in enumerate(lm.BONE_NAMES):
-        name = hand + name
-        if name not in edit_bones:
+        bone_name = hand + name
+        if bone_name not in edit_bones:
             continue
-        bone = edit_bones[name]
+        bone = edit_bones[bone_name]
         new_head = joints[i]
         new_tail = bone.tail + Vector(new_head - bone.head)
         bone.head = new_head
         bone.tail = new_tail
-    
-    for name, index in lm.FINGERTIPS.items():
-        name = hand + name
-        if name not in edit_bones:
+        # update corrective bone locations
+        corr_bone_name = "corrective_" + bone_name
+        if corr_bone_name not in edit_bones:
             continue
-        bone = edit_bones[name]
+        corr_bone = edit_bones[corr_bone_name]
+        new_head = joints[i]
+        new_tail = corr_bone.tail + Vector(new_head - corr_bone.head)
+        corr_bone.head = new_head
+        corr_bone.tail = new_tail
+
+
+    for name, index in lm.FINGERTIPS.items():
+        bone_name = hand + name
+        if bone_name not in edit_bones:
+            continue
+        bone = edit_bones[bone_name]
         new_head = vert_shaped[index]
         new_tail = bone.tail + Vector(new_head - bone.head)
         bone.head = new_head
         bone.tail = new_tail
 
-    bpy.ops.object.mode_set(mode=current_mode)
+    if active_curr:
+        bpy.ops.object.mode_set(mode=current_mode)
     context.view_layer.objects.active = active_curr
 
 def load_poses_from_file(self, context):
     global _cached_poses
     pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+    if not context.scene.armature_ref:
+        return
     if pose_path.is_file():
         with open(pose_path, 'r') as f:
             try:
@@ -299,19 +320,20 @@ bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
 
 bpy.types.Scene.export_style = bpy.props.EnumProperty(
     name="",
-    description="", # TODO: add descr
+    description="Export style",
     items=[
         ('VERB', "Verbose", "Each metadata parameter is saved explicitly"),
-        ('COMP', "Compact (HanCo Style)", "Metadata is saved with minimal explanation, similar to the HanCo dataset"),
+        ('COMP', "Compact (HanCo)", "Metadata is saved with minimal explanation, similar to the HanCo dataset"),
     ],
     default='VERB',
+    update=display_export_hanco_warning,
 )
 
 bpy.types.Scene.resolution_type = bpy.props.EnumProperty(
     name="",
     description="",
     items=[
-        ('CUSTOM', "Custom", "Ignore camera's native resolution and use the one provided by the user"),
+        ('CUSTOM', "User Specified", "Ignore camera's native resolution and use the one provided by the user"),
         ('CAMERA', "Camera Specific", "Use the native camera resolution"),
     ],
     default='CAMERA',
@@ -708,7 +730,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 
         cam_data.clip_start = 0.01
         cam_data.clip_end = 50
-        cam_data.display_size = 0.3
+        cam_data.display_size = 0.06
 
         return cam_data
 
@@ -721,7 +743,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 
         cam_data.clip_start = 0.01
         cam_data.clip_end = 50
-        cam_data.display_size = 0.3
+        cam_data.display_size = 0.06
 
         return cam_data
 
@@ -771,7 +793,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
                                                 object_data=cam_left_data)
             cam_left_obj.parent = empty
             cam_left_obj.location = (-0.032, 0.0, 0.0)
-            cam_left_obj.scale = (0.2, 0.2, 0.2)
+            # cam_left_obj.scale = (0.2, 0.2, 0.2)
             self.add_camera_properties(cam_left_obj, 384, 384, rgb=False, ir=True)
             target_collection.objects.link(cam_left_obj)
             
@@ -789,7 +811,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
                                                 object_data=cam_right_data)
             cam_right_obj.parent = empty
             cam_right_obj.location = (0.032, 0.0, 0.0)
-            cam_right_obj.scale = (0.2, 0.2, 0.2)
+            # cam_right_obj.scale = (0.2, 0.2, 0.2)
             self.add_camera_properties(cam_right_obj, 384, 384, rgb=False, ir=True)
             target_collection.objects.link(cam_right_obj)
             
@@ -858,7 +880,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
                                                 object_data=cam_data)
             cam_obj.parent = empty
             cam_obj.location = (0.03, 0.0, -0.025)
-            cam_obj.scale = (0.2, 0.2, 0.2)
+            # cam_obj.scale = (0.2, 0.2, 0.2)
             self.add_camera_properties(cam_obj, 1920, 1080, rgb=True, ir=False)
             target_collection.objects.link(cam_obj)
 
@@ -885,7 +907,8 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
         armature.hide_set(False)
         active_curr = context.view_layer.objects.active
         context.view_layer.objects.active = armature
-        current_mode = context.object.mode
+        if active_curr:
+            current_mode = context.object.mode
         bpy.ops.object.mode_set(mode='POSE')
         bone_collection = armature.data.collections.get(context.scene.selected_bone_collection)
         for bone in armature.pose.bones:
@@ -913,7 +936,8 @@ class VIEW3D_OT_GeneratePose(bpy.types.Operator):
                 random.uniform(min_x, max_x),
                 random.uniform(min_y, max_y),
                 random.uniform(min_z, max_z))
-        bpy.ops.object.mode_set(mode=current_mode)
+        if active_curr:
+            bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
 
@@ -1034,7 +1058,8 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
 
     def get_armature_data(self, context):
         active_curr = context.view_layer.objects.active
-        current_mode = context.object.mode
+        if active_curr:
+            current_mode = context.object.mode
         armature = context.scene.armature_ref
         context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='POSE')
@@ -1049,7 +1074,8 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
                 continue
             bone_info = self.get_bone_data(bone)
             armature_info["joints"].append(bone_info)
-        bpy.ops.object.mode_set(mode=current_mode)
+        if active_curr:
+            bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         return armature_info
 
@@ -1154,7 +1180,8 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
         armature = context.scene.armature_ref
         pose = context.scene.pose_selection
         active_curr = context.view_layer.objects.active
-        current_mode = context.object.mode
+        if active_curr:
+            current_mode = context.object.mode
         # Search for the pose
         for entry in data:
             if (entry.get("name") == pose 
@@ -1172,7 +1199,8 @@ class VIEW3D_OT_ApplyPose(bpy.types.Operator):
                             break
                 break
 
-        bpy.ops.object.mode_set(mode=current_mode)
+        if active_curr:
+            bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         
         # Apply corrective poseshapes
@@ -1561,7 +1589,8 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
         curr_hide = armature.hide_get()
         armature.hide_set(False)
         context.view_layer.objects.active = armature
-        current_mode = context.object.mode
+        if active_curr:
+            current_mode = context.object.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
             # if bone_collection and bone.name not in bone_collection.bones:
@@ -1610,7 +1639,8 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
                 for key in mano_left_poseshape_keys:
                     key.keyframe_insert(data_path="value")
         
-        bpy.ops.object.mode_set(mode=current_mode)
+        if active_curr:
+            bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
         return {'FINISHED'}
@@ -1635,14 +1665,16 @@ class VIEW3D_OT_ResetPose(bpy.types.Operator):
         curr_hide = armature.hide_get()
         armature.hide_set(False)
         context.view_layer.objects.active = armature
-        current_mode = context.object.mode
+        if active_curr:
+            current_mode = context.object.mode
         bpy.ops.object.mode_set(mode='POSE')
         for bone in armature.pose.bones:
             if bone_collection and bone.name not in bone_collection.bones:
                 continue
             bone.rotation_mode = 'XYZ'
             bone.rotation_euler = (0,0,0)
-        bpy.ops.object.mode_set(mode=current_mode)
+        if active_curr:
+            bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         armature.hide_set(curr_hide)
         return {'FINISHED'}
@@ -1652,7 +1684,7 @@ class ExportArmatureGroup(bpy.types.PropertyGroup):
         items = [("ALL", "All", "Use the whole armature")]
         armature = self.arm_ref
         if armature and armature.type == 'ARMATURE':
-            items.extend([(bc.name, bc.name, f"Export {bc.name} collection") for bc in armature.data.collections])
+            items.extend([(bc.name, bc.name, f"Export joints from {bc.name} Bone Collection") for bc in armature.data.collections])
         return items
     
     arm_ref: bpy.props.PointerProperty(
@@ -1697,7 +1729,7 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
         items = [("ALL", "All", "Use the whole armature")]
         armature = self.arm_ref
         if armature and armature.type == 'ARMATURE':
-            items.extend([(bc.name, bc.name, f"Export {bc.name} collection") for bc in armature.data.collections])
+            items.extend([(bc.name, bc.name, f"Use poses from {bc.name} Bone Collection") for bc in armature.data.collections])
         return items
     
     arm_ref: bpy.props.PointerProperty(
@@ -1709,14 +1741,13 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
 
     bone_col: bpy.props.EnumProperty(
         name="",
-        description="Bone collection",
+        description="Bone Collection",
         items=pose_get_bone_colllections,
     ) # type: ignore
 
     group: bpy.props.IntProperty(
         name="",
-        description="Poses in the same group are keyframed on the same frame. " \
-        "Each frame will contain a combination of those poses.\n" \
+        description="Poses in the same group are keyframed on the same frame.\n" \
         "Avoid assigning bone collections with shared bones to the same group",
         default=1,
         min=1,
@@ -1745,6 +1776,32 @@ class VIEW3D_OT_RemovePoseArmature(bpy.types.Operator):
         scene = context.scene
         if 0 <= self.index < len(scene.pose_arm):
             scene.pose_arm.remove(self.index)
+        return {'FINISHED'}
+
+class VIEW3D_OT_MoveUpPoseArmature(bpy.types.Operator):
+    bl_idname = "view3d.move_up_pose_item"
+    bl_label = ""
+    bl_description = ""
+
+    index: bpy.props.IntProperty() # type: ignore
+
+    def execute(self, context):
+        scene = context.scene
+        if self.index > 0:
+            scene.pose_arm.move(self.index, self.index - 1)
+        return {'FINISHED'}
+    
+class VIEW3D_OT_MoveDownPoseArmature(bpy.types.Operator):
+    bl_idname = "view3d.move_down_pose_item"
+    bl_label = ""
+    bl_description = ""
+
+    index: bpy.props.IntProperty() # type: ignore
+
+    def execute(self, context):
+        scene = context.scene
+        if self.index < len(scene.pose_arm) - 1:
+            scene.pose_arm.move(self.index, self.index + 1)
         return {'FINISHED'}
 
 class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
@@ -1896,7 +1953,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         armature_data = []
         active_curr = context.view_layer.objects.active
         current_mode = 'OBJECT'
-        if context.object:
+        if active_curr:
             current_mode = context.object.mode
         max_noise = context.scene.jitter
         for export in export_armatures:
@@ -1917,7 +1974,8 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world, max_noise, bone.parent is None)
                 armature_info["joints"].append(bone_info)
             armature_data.append(armature_info)
-        bpy.ops.object.mode_set(mode=current_mode)
+        if active_curr:
+            bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
         return armature_data
 
@@ -1970,13 +2028,18 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         # Get the reference frame
         origin = context.scene.origin_ref
         if origin:
-            rot = origin.rotation_euler.to_matrix().to_4x4()
-            trans = Matrix.Translation(origin.location)
-            matrix_world = (trans @ rot).inverted()
+            # rot = origin.rotation_euler.to_matrix().to_4x4()
+            # trans = Matrix.Translation(origin.location)
+            # matrix_world = (trans @ rot).inverted()
+
+            # robust to constraints and drivers
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            origin_eval = origin.evaluated_get(depsgraph)
+            matrix_world = origin_eval.matrix_world.inverted()
         else:
             matrix_world = Matrix.Translation(Vector((0,0,0)))
         
-        # Create metadata folder if it doesn't exists
+        # Create metadata folder(s) if it doesn't exists
         if context.scene.export_style == 'VERB':
                 meta_path = Path(bpy.path.abspath(save_folder), "metadata")
                 meta_path.mkdir(exist_ok=True)
@@ -1985,6 +2048,9 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 calib_path.mkdir(parents=True, exist_ok=True)
                 shape_path = Path(bpy.path.abspath(save_folder), "shape", f"{context.scene.sequence_id:04}")
                 shape_path.mkdir(parents=True, exist_ok=True)
+                for i in range(len(cameras)):
+                    cam_shape_path = Path(shape_path, f"cam{i}")
+                    cam_shape_path.mkdir(parents=True, exist_ok=True)
                 xyz_path = Path(bpy.path.abspath(save_folder), "xyz", f"{context.scene.sequence_id:04}")
                 xyz_path.mkdir(parents=True, exist_ok=True)
 
@@ -2012,15 +2078,16 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 with open(calib_filepath, 'w') as f:
                     json.dump(camera_params, f)
                 
-                # Save shape data
+                # Save general pose/shape data
                 shape_params = {
                     "shapes" : [],
-                    "poses" : [],     # joint rotations. wrist global other relative (not sure if right)
-                    "global_t" : []  # TODO: investigate why this .shape
+                    "poses" : [],     # joint rotations. wrist global other relative
+                    "global_t" : [] 
                 }
-                # Get the right mesh <! ONLY MANO RIGHT HAND IS SUPPORTED !>
+                # Get the mesh data <! ONLY MANO RIGHT HAND IS SUPPORTED !>
                 mesh_right = None
                 right_armature = None
+                shapes = []
                 for export in export_armatures:
                     if right_armature:
                         break
@@ -2031,21 +2098,26 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                         if child.type == 'MESH' and child.data.shape_keys:
                             if child.vertex_groups.get("MANO_RIGHT_HAND"):
                                 mesh_right = child
-                                shape_params["shapes"] = [[key.value for key in child.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]]
+                                shapes = [key.value for key in child.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
                                 right_armature = armature
                                 break
+                shape_params["shapes"] = [shapes]
+                wrist = armature.pose.bones["corrective_RIGHT_" + lm.BONE_NAMES[0]]
+                wrist_loc = armature.matrix_world @ wrist.head
+                wrist_matrix = (armature.matrix_world @ wrist.matrix)
                 if mesh_right:
                     # Get armature pose in rodrigues representation
                     pose = [0.0] * (NUM_MANO_JOINTS * 3)
+                    # excluding wrist
                     for index in range(1, NUM_MANO_JOINTS):
-                        joint_name = "RIGHT_" + lm.BONE_NAMES[index]
+                        joint_name = "corrective_RIGHT_" + lm.BONE_NAMES[index]
                         joint_pose = rodrigues_from_pose(armature, joint_name)
                         pose[index*3 + 0] = joint_pose[0]
                         pose[index*3 + 1] = joint_pose[1]
                         pose[index*3 + 2] = joint_pose[2]
                     # calculate global rotation for wrist
-                    wrist = armature.pose.bones["RIGHT_" + lm.BONE_NAMES[0]]
-                    quat = (matrix_world @ (armature.matrix_world @ wrist.matrix)).to_quaternion()
+                    
+                    quat = (matrix_world @ wrist_matrix).to_quaternion()
                     (axis, angle) = quat.to_axis_angle()
                     rodrigues = axis
                     rodrigues.normalize()
@@ -2055,11 +2127,40 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                     pose[2] = rodrigues[2]
                     shape_params["poses"] = [pose]
                     # get wrist global position
-                    shape_params["global_t"] = [[list(matrix_world @ (armature.matrix_world @ wrist.head))]]
+                    global_t = matrix_world @ wrist_loc
+                    shape_params["global_t"] = [[list(global_t)]]
                 shape_filepath = Path(shape_path, f"{i - current_frame:08}.json")
                 with open(shape_filepath, 'w') as f:
                     json.dump(shape_params, f)
                 
+                # Save camera specific pose/shape data
+                for k, camera in enumerate(cameras):
+                    cam_shape_filepath = Path(shape_path, f"cam{k}", f"{i - current_frame:08}.json")
+                    cam_pose_shape = []
+                    camera_matrix_world = camera.matrix_world.inverted()
+                    # convert pose angles to camera space
+                    # only wrist pose needs to be converted (oter joints are in local coordinates)
+                    cam_pose = [0.0] * 3 + pose[3:]
+                    quat = (camera_matrix_world @ wrist_matrix).to_quaternion()
+                    (axis, angle) = quat.to_axis_angle()
+                    rodrigues = axis
+                    rodrigues.normalize()
+                    rodrigues = rodrigues * angle
+                    cam_pose[0] = rodrigues[0]
+                    cam_pose[1] = rodrigues[1]
+                    cam_pose[2] = rodrigues[2]
+                    # add pose joint angles
+                    cam_pose_shape += cam_pose
+                    # add shape params
+                    cam_pose_shape += shapes
+                    # convert global translation to camera space
+                    camera_t =list(camera_matrix_world @ wrist_loc)
+                    # convert to millimeters (manopth campatability)
+                    # camera_t = [x * 1000 for x in camera_t] # TODO: uncomment
+                    # add global translation
+                    cam_pose_shape += camera_t
+                    with open(cam_shape_filepath, 'w') as f:
+                        json.dump(cam_pose_shape, f)
                 # Save joint data
                 xyz = []
                 max_noise = context.scene.jitter
@@ -2836,7 +2937,7 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
         # layout_row = layout.row(align=True)
         # split_render = layout_row.split(factor=0.9, align=True)
         layout_col = layout.column(align=True)
-        layout_col.label(text="Armatures which poses will be keyframed:")
+        layout_col.label(text="Keyframe Generation:")
         for i, item in enumerate(scene.pose_arm):
             box = layout_col.box()
             box_row = box.row(align=False)
@@ -2851,11 +2952,13 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
             box_arm.prop(item, "arm_ref", icon='ARMATURE_DATA')
             box_row_bone = box_col.row(align=True)
             box_bone = box_row_bone.split(factor=0.27, align=True)
-            box_bone.label(text="Bones:")
+            box_bone.label(text="Poses:")
             box_bone.prop(item, "bone_col", icon='GROUP_BONE')
-            col_x = box_row.column(align=True)
-            remove_op = col_x.operator("view3d.remove_pose_item", icon='X')
-            remove_op.index = i
+            col_move = box_row.column(align=True)
+            remove_op = col_move.operator("view3d.remove_pose_item", icon='X')
+            move_up_op = col_move.operator("view3d.move_up_pose_item", icon='TRIA_UP')
+            move_down_op = col_move.operator("view3d.move_down_pose_item", icon='TRIA_DOWN')
+            remove_op.index = move_up_op.index = move_down_op.index = i
         layout_col.operator("view3d.add_pose_armature", icon='ADD')
         layout.prop(scene, "keyframe_spacing")
         layout.operator(VIEW3D_OT_GenerateFrames.bl_idname, icon="SEQUENCE")
@@ -2876,6 +2979,8 @@ classes = (
     PoseArmatureGroup,
     VIEW3D_OT_AddPoseArmature,
     VIEW3D_OT_RemovePoseArmature,
+    VIEW3D_OT_MoveUpPoseArmature,
+    VIEW3D_OT_MoveDownPoseArmature,
     VIEW3D_OT_ImportMANO,
     VIEW3D_OT_AddMANOHand,
     VIEW3D_OT_AttachObject,
