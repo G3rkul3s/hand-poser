@@ -1755,6 +1755,12 @@ class PoseArmatureGroup(bpy.types.PropertyGroup):
         soft_max=10,
     ) # type: ignore
 
+    shuffle: bpy.props.BoolProperty(
+        name="Shuffle Poses",
+        description="Keyframe poses in random order",
+        default=False,
+    ) # type: ignore
+
 class VIEW3D_OT_AddPoseArmature(bpy.types.Operator):
     bl_idname = "view3d.add_pose_armature"
     bl_label = "Add"
@@ -1852,6 +1858,10 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
                 poses = [pose["name"] for pose in data
                     if pose["arm_name"] == pose_arm.arm_ref.name
                     and pose["bone_col"] == pose_arm.bone_col]
+                if pose_arm.shuffle:
+                    random.shuffle(poses)
+                else:
+                    poses.sort()
                 if pose_arm.group in arm_groups:
                     arm_groups[pose_arm.group].append({pose_arm: poses})
                 else:
@@ -2954,6 +2964,7 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
             box_bone = box_row_bone.split(factor=0.27, align=True)
             box_bone.label(text="Poses:")
             box_bone.prop(item, "bone_col", icon='GROUP_BONE')
+            box_col.prop(item, "shuffle")
             col_move = box_row.column(align=True)
             remove_op = col_move.operator("view3d.remove_pose_item", icon='X')
             move_up_op = col_move.operator("view3d.move_up_pose_item", icon='TRIA_UP')
