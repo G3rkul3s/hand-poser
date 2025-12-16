@@ -208,25 +208,25 @@ def load_vis_att_from_file(self, context):
     data = []
     pose_path = Path(bpy.path.abspath(context.scene.pose_path))
     if pose_path.is_file():
-            with open(pose_path, 'r') as f:
-                try:
-                    data = json.load(f)
-                except json.JSONDecodeError:
-                    _cached_pose_attachments = [("NONE", "None", "")]
-                    return
+        with open(pose_path, 'r') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                _cached_pose_attachments = [("NONE", "None", "")]
+                return
     else:
         # self.report({'ERROR'}, "A file with saved poses is missing")
         _cached_pose_attachments = [("NONE", "None", "")]
         return
     for pose in data:
-            if pose['name'] == context.scene.pose_selection:
-                objects = pose.get('render_with')
-                if objects is None or len(objects) == 0:
-                    _cached_pose_attachments = [("NONE", "None", "")]
-                else:
-                    _cached_pose_attachments = []
-                    _cached_pose_attachments.extend([(obj, obj, "") for obj in objects])
-                break
+        if pose['name'] == context.scene.pose_selection:
+            objects = pose.get('render_with')
+            if objects is None or len(objects) == 0:
+                _cached_pose_attachments = [("NONE", "None", "")]
+            else:
+                _cached_pose_attachments = []
+                _cached_pose_attachments.extend([(obj, obj, "") for obj in objects])
+            break
 
 def load_shapes_from_file(self, context):
     global _cached_shapes
@@ -1605,26 +1605,23 @@ class VIEW3D_OT_ArmatureKeyframe(bpy.types.Operator):
             bone.keyframe_insert(data_path="location")
             bone.rotation_mode = 'QUATERNION'
             bone.keyframe_insert(data_path="rotation_quaternion")
+        
         current_frame = context.scene.frame_current
-        if context.scene.keyframe_attachments == True:
+        if context.scene.keyframe_attachments:
             for item in _cached_pose_attachments:
-                if item[0] == 'NONE':
-                    continue
-                if not item[0] in bpy.data.objects:
-                    self.report({'ERROR'}, f'"{item[0]}" object was not found')
-                    continue
-                obj = bpy.data.objects[item[0]]
-                # if obj is not None:
-                obj.hide_render = False
-                obj.keyframe_insert(data_path="hide_render")
-                context.scene.frame_set(current_frame-1)
-                if not is_hide_render_keyframed(obj):
-                    obj.hide_render = True
+                obj = bpy.data.objects.get(item[0])
+                # if obj is not None
+                if obj:
+                    obj.hide_render = False
                     obj.keyframe_insert(data_path="hide_render")
-                context.scene.frame_set(current_frame+1)
-                if not is_hide_render_keyframed(obj):
-                    obj.hide_render = True
-                    obj.keyframe_insert(data_path="hide_render")
+                    context.scene.frame_set(current_frame-1)
+                    if not is_hide_render_keyframed(obj):
+                        obj.hide_render = True
+                        obj.keyframe_insert(data_path="hide_render")
+                    context.scene.frame_set(current_frame+1)
+                    if not is_hide_render_keyframed(obj):
+                        obj.hide_render = True
+                        obj.keyframe_insert(data_path="hide_render")
                     
             context.scene.frame_set(current_frame)
         
@@ -1826,6 +1823,29 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
 
     i: int
     spacing: int
+    key_attach: bool
+
+    def keyframe_attachments_show(self, context):
+        for item in _cached_pose_attachments:
+            obj = bpy.data.objects.get(item[0])
+            if obj:
+                obj.hide_render = False
+                obj.keyframe_insert(data_path="hide_render")
+                context.scene.frame_set(self.i-1)
+                if not is_hide_render_keyframed(obj):
+                    obj.hide_render = True
+                    obj.keyframe_insert(data_path="hide_render")
+        context.scene.frame_set(self.i)
+
+    def keyframe_attachments_hide(self, context):
+        for item in _cached_pose_attachments:
+            obj = bpy.data.objects.get(item[0])
+            if obj:
+                context.scene.frame_set(self.i - self.spacing)
+                if not is_hide_render_keyframed(obj):
+                    obj.hide_render = True
+                    obj.keyframe_insert(data_path="hide_render")
+        context.scene.frame_set(self.i)
 
     def keyframe_background(self, context):
         world_nodes = context.scene.world.node_tree.nodes
@@ -1850,10 +1870,19 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
             context.scene.selected_bone_collection = arm.bone_col
             context.scene.pose_selection = pose
             context.scene.frame_set(self.i)
+            # current_frame = self.i
             bpy.ops.view3d.apply_pose('EXEC_DEFAULT')
-            bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT') # TODO: fix bug on attachments keyframe order
+            bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
+            if self.key_attach:
+                self.keyframe_attachments_show(context)
             self.keyframe_background(context)
             self.keyframe(context, pose_group, index + 1)
+            if self.key_attach:
+                # ensures attachments visibility are reloaded
+                context.scene.armature_ref = arm.arm_ref
+                context.scene.selected_bone_collection = arm.bone_col
+                context.scene.pose_selection = pose
+                self.keyframe_attachments_hide(context)
 
     def execute(self, context):
         pose_path = Path(bpy.path.abspath(context.scene.pose_path))
@@ -1887,6 +1916,13 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
         
         current_frame = context.scene.frame_current
         self.i = current_frame
+        # Disable keyframing attachments for custom keyframing
+        if context.scene.keyframe_attachments:
+            self.key_attach = True
+            context.scene.keyframe_attachments = False
+        else:
+            self.key_attach = False
+        
         # Generate keyframes
         for arm_group in arm_groups:
             self.keyframe(context, arm_groups[arm_group])
@@ -1900,6 +1936,7 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
         #     bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
         
         context.scene.frame_current = current_frame
+        context.scene.keyframe_attachments = self.key_attach
 
         return {'FINISHED'}
 
