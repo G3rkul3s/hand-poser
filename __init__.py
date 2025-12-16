@@ -343,7 +343,7 @@ bpy.types.Scene.pose_selection = bpy.props.EnumProperty(
     name="",
     description="Predefined pose",
     items=get_poses,
-    default=0,
+    # default=0,
     # default=1,
     update=load_vis_att_from_file,
 )
@@ -407,6 +407,13 @@ bpy.types.Scene.override_compositing = bpy.props.BoolProperty(
     description="Override the existing compositing node tree",
     default=False,
 #    update=
+)
+
+bpy.types.Scene.background_rotation = bpy.props.BoolProperty(
+    name="Background Random Rotations",
+    description="Rotate the background on each frame by a random amount.\n" \
+                "Works when there is a 'Mapping' node inside world shading",
+    default=False,
 )
 
 """bpy.types.Scene.random_poses_slider = bpy.props.IntProperty(
@@ -1820,6 +1827,16 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
     i: int
     spacing: int
 
+    def keyframe_background(self, context):
+        world_nodes = context.scene.world.node_tree.nodes
+        mapping_node = world_nodes.get('Mapping')
+        if mapping_node:
+            # Set the Z rotation (Index 2). 
+            # Note: Blender Python uses Radians, not Degrees.
+            # Example: Rotate 90 degrees
+            mapping_node.inputs['Rotation'].default_value[2] = math.radians(random.uniform(0, 359))
+            mapping_node.inputs['Rotation'].keyframe_insert(data_path="default_value", index=2, frame=self.i)
+
     def keyframe(self, context, pose_group, index=0):
         # If we reached the end of the group
         if index == len(pose_group):
@@ -1834,7 +1851,8 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
             context.scene.pose_selection = pose
             context.scene.frame_set(self.i)
             bpy.ops.view3d.apply_pose('EXEC_DEFAULT')
-            bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
+            bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT') # TODO: fix bug on attachments keyframe order
+            self.keyframe_background(context)
             self.keyframe(context, pose_group, index + 1)
 
     def execute(self, context):
@@ -2710,6 +2728,7 @@ class VIEW3D_PT_ExportSettings(bpy.types.Panel):
         split_compositing = layout_row.split(factor=0.7, align=True)
         split_compositing.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
         split_compositing.prop(scene, "override_compositing")
+        layout.prop(scene, "background_rotation")
         
         layout.separator(type='LINE')
         layout_row = layout.row(align=True)
