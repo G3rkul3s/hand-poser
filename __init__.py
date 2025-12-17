@@ -282,6 +282,12 @@ def is_hide_render_keyframed(obj, frame=None):
 
     return False
 
+def set_random_seed(self, context):
+    if self.random_seed:
+        random.seed(self.random_seed)
+    else:
+        random.seed()
+
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
     description="Display render type in viewport",
@@ -400,6 +406,12 @@ bpy.types.Scene.mano_folder = bpy.props.StringProperty(
     name="",
     description="Path to MANO .npz models.\nUse provided 'unpack_MANO.py' script to generate those files",
     subtype='DIR_PATH'
+)
+
+bpy.types.Scene.random_seed = bpy.props.StringProperty(
+    name="",
+    description="Enter a seed value to get consistant ",
+    update=set_random_seed,
 )
 
 bpy.types.Scene.override_compositing = bpy.props.BoolProperty(
@@ -2751,6 +2763,10 @@ class VIEW3D_PT_ExportSettings(bpy.types.Panel):
         split_style.label(text="Export Style:")
         split_style.prop(scene, "export_style")
         layout.prop(scene, "sequence_id")
+        layout_row = layout.row(align=True)
+        split_seed = layout_row.split(factor=0.3, align=True)
+        split_seed.label(text="Seed:")
+        split_seed.prop(scene, "random_seed", placeholder="42")
 
         layout.separator(type='LINE')
         layout_row = layout.row(align=True)
@@ -3089,7 +3105,6 @@ def register():
     # global _cached_pose_attachments
     # _cached_poses = [("NONE", "None", "")]
     # _cached_pose_attachments = [("NONE", "None", "")]
-    random.seed()
     reload_modules()
     for cls in classes:
         bpy.utils.register_class(cls)

@@ -7971,84 +7971,6 @@
         "render_with": []
     },
     {
-        "name": "Center",
-        "arm_name": "SMPLX-lh-female",
-        "bone_col": "RightArmSmall",
-        "joints": [
-            {
-                "name": "right_shoulder",
-                "rotation_quaternion": [
-                    0.7388675212860107,
-                    -0.3824006915092468,
-                    0.4582911431789398,
-                    0.31275278329849243
-                ]
-            },
-            {
-                "name": "right_elbow",
-                "rotation_quaternion": [
-                    0.9758658409118652,
-                    0.12120507657527924,
-                    0.17848265171051025,
-                    0.03375251218676567
-                ]
-            }
-        ],
-        "render_with": []
-    },
-    {
-        "name": "Down",
-        "arm_name": "SMPLX-lh-female",
-        "bone_col": "RightArmSmall",
-        "joints": [
-            {
-                "name": "right_shoulder",
-                "rotation_quaternion": [
-                    0.7730805277824402,
-                    -0.3074118196964264,
-                    0.4250945448875427,
-                    0.35656654834747314
-                ]
-            },
-            {
-                "name": "right_elbow",
-                "rotation_quaternion": [
-                    0.9758658409118652,
-                    0.12120507657527924,
-                    0.17848265171051025,
-                    0.03375251218676567
-                ]
-            }
-        ],
-        "render_with": []
-    },
-    {
-        "name": "Up",
-        "arm_name": "SMPLX-lh-female",
-        "bone_col": "RightArmSmall",
-        "joints": [
-            {
-                "name": "right_shoulder",
-                "rotation_quaternion": [
-                    0.692608118057251,
-                    -0.4609224796295166,
-                    0.48974984884262085,
-                    0.2607492506504059
-                ]
-            },
-            {
-                "name": "right_elbow",
-                "rotation_quaternion": [
-                    0.9758658409118652,
-                    0.12120507657527924,
-                    0.17848265171051025,
-                    0.03375251218676567
-                ]
-            }
-        ],
-        "render_with": []
-    },
-    {
         "name": "Elbow Up",
         "arm_name": "SMPLX-lh-female",
         "bone_col": "RightArmSmall",
@@ -9291,5 +9213,57 @@
         "render_with": [
             "Scalpel_pos2"
         ]
+    },
+    {
+        "name": "High Up",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArmSmall",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.6206467151641846,
+                    -0.554033637046814,
+                    0.521640419960022,
+                    0.18904061615467072
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.9758658409118652,
+                    0.12120507657527924,
+                    0.17848265171051025,
+                    0.03375251218676567
+                ]
+            }
+        ],
+        "render_with": []
+    },
+    {
+        "name": "Low Down",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "RightArmSmall",
+        "joints": [
+            {
+                "name": "right_shoulder",
+                "rotation_quaternion": [
+                    0.7973421812057495,
+                    -0.23748913407325745,
+                    0.3917231857776642,
+                    0.392935186624527
+                ]
+            },
+            {
+                "name": "right_elbow",
+                "rotation_quaternion": [
+                    0.9758658409118652,
+                    0.12120507657527924,
+                    0.17848265171051025,
+                    0.03375251218676567
+                ]
+            }
+        ],
+        "render_with": []
     }
 ]
