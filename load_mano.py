@@ -32,12 +32,12 @@ FINGERTIP_NAMES = [
     "RingTip",
     "LittleTip",
 ]
-FINGERTIPS = { # Vertex index:
+FINGERTIPS = { # Vertex index from manopth:
     FINGERTIP_NAMES[0] : 745, # Thumb
-    FINGERTIP_NAMES[1] : 333, # Point
+    FINGERTIP_NAMES[1] : 317, # Point
     FINGERTIP_NAMES[2] : 444, # Middle
-    FINGERTIP_NAMES[3] : 555, # Ring
-    FINGERTIP_NAMES[4] : 672, # Pinky
+    FINGERTIP_NAMES[3] : 556, # Ring
+    FINGERTIP_NAMES[4] : 673, # Pinky
 }
 BONE_PARENTS = {
     BONE_NAMES[0]       : None,
