@@ -20,7 +20,8 @@ import json
 # import sys
 # import typing
 from math import radians
-from mathutils import Vector, Quaternion, Matrix
+import bmesh
+from mathutils import Vector, Quaternion, Matrix, bvhtree
 from bpy_extras.object_utils import world_to_camera_view
 from pathlib import Path
 ROOT_DIR = Path(__file__).parent
@@ -89,7 +90,7 @@ def export_hanco_warning(self, context):
     self.layout.label(text='This export style is supported only for MANO right hand')
 
 def display_export_hanco_warning(self, context):
-    if self.export_style == 'COMP':
+    if self.export_style == 'HANCO':
         bpy.context.window_manager.popup_menu(export_hanco_warning, title="Warning", icon='ERROR')
 
 def update_light_selection(self, context):
@@ -289,6 +290,41 @@ def set_random_seed(self, context):
     else:
         random.seed()
 
+def bvh_from_object(obj, depsgraph):
+    obj_eval = obj.evaluated_get(depsgraph)
+    mesh = obj_eval.to_mesh()
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bm.transform(obj_eval.matrix_world)
+    bvh = bvhtree.BVHTree.FromBMesh(bm)
+    bm.free()
+    obj_eval.to_mesh_clear()
+    return bvh
+
+def check_collisions(context, verbose=False):
+    depsgraph = context.evaluated_depsgraph_get()
+    coll_groups = context.scene.coll_gr
+    collision = False
+
+    bvh_cache = {}
+
+    for coll in coll_groups:
+        bvh_cache[coll] = bvh_from_object(coll.mesh, depsgraph)
+
+    for i, coll in enumerate(coll_groups):
+        bvh = bvh_cache.get(coll)
+        for target in coll_groups[i+1:]:
+            if target.group == coll.group:
+                continue
+            target_bvh = bvh_cache.get(target)
+            if bvh.overlap(target_bvh):
+                if verbose:
+                    print(f"{coll.mesh.name} intersects {target.mesh.name}")
+                    collision = True
+                else:
+                    return True
+    return collision
+
 """bpy.types.Scene.viewport_checkbox = bpy.props.BoolProperty(
     name="Update in Viewport",
     description="Display render type in viewport",
@@ -315,6 +351,24 @@ bpy.types.Scene.light_selection = bpy.props.EnumProperty(
     update=update_light_selection
 )
 
+bpy.types.Scene.frame_generation = bpy.props.EnumProperty(
+    name="",
+    description="A way to generate keyframes",
+    items=[
+        ('RND', "Random", "Use random pose generator"),
+        ('POSE', "From Poses", "Use saved poses"),
+    ],
+    default='POSE',
+)
+
+bpy.types.Scene.num_keyframes = bpy.props.IntProperty(
+    name="Number of Keyframes",
+    description="How many keyframes to generate",
+    default=1,
+    min=1,
+    # soft_max=9999,
+)
+
 bpy.types.Scene.hand_selection = bpy.props.EnumProperty(
     name="",
     description="MANO hand",
@@ -330,7 +384,7 @@ bpy.types.Scene.export_style = bpy.props.EnumProperty(
     description="Export style",
     items=[
         ('VERB', "Verbose", "Each metadata parameter is saved explicitly"),
-        ('COMP', "Compact (HanCo)", "Metadata is saved with minimal explanation, same as in the HanCo dataset"),
+        ('HANCO', "Compact (HanCo)", "Metadata is saved with minimal explanation, same as in the HanCo dataset"),
         # ('COMP2', "Compact (HanCo-like)", "Metadata is saved with minimal explanation, similar to the HanCo dataset"),
     ],
     default='VERB',
@@ -423,11 +477,23 @@ bpy.types.Scene.override_compositing = bpy.props.BoolProperty(
 #    update=
 )
 
+bpy.types.Scene.override_world_shading = bpy.props.BoolProperty(
+    name="Override",
+    description="Override the existing world shading node tree",
+    default=False,
+)
+
 bpy.types.Scene.background_rotation = bpy.props.BoolProperty(
     name="Background Random Rotations",
     description="Rotate the background on each frame by a random amount.\n" \
                 "Works when there is a 'Mapping' node inside world shading",
     default=False,
+)
+
+bpy.types.Scene.consider_collisions = bpy.props.BoolProperty(
+    name="Consider Collisions",
+    description="Account for the collisions when generating frames",
+    default=True,
 )
 
 """bpy.types.Scene.random_poses_slider = bpy.props.IntProperty(
@@ -619,23 +685,23 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
             rgb_path = Path(bpy.path.abspath(save_folder), "rgb", f"{context.scene.sequence_id:04}")
             rgb_path.mkdir(parents=True, exist_ok=True)
             rgb_cam_path = []
-            if export_style == 'COMP':
+            if export_style == 'HANCO':
                 for i in range(len(cameras)):
                     rgb_cam_path.append(Path(rgb_path, f"cam{i}"))
                     rgb_cam_path[i].mkdir(exist_ok=True)
         elif render_type == 'IR':
-            ir_path = Path(bpy.path.abspath(save_folder), "infrared")
+            ir_path = Path(bpy.path.abspath(save_folder), "infrared", f"{context.scene.sequence_id:04}")
             ir_path.mkdir(exist_ok=True)
             ir_cam_path = []
-            if export_style == 'COMP':
+            if export_style == 'HANCO':
                 for i in range(len(cameras)):
                     ir_cam_path.append(Path(ir_path, f"cam{i}"))
                     ir_cam_path[i].mkdir(exist_ok=True)
         elif render_type == 'DEPTH':
-            depth_path = Path(bpy.path.abspath(save_folder), "depth")
+            depth_path = Path(bpy.path.abspath(save_folder), "depth", f"{context.scene.sequence_id:04}")
             depth_path.mkdir(exist_ok=True)
             depth_cam_path = []
-            if export_style == 'COMP':
+            if export_style == 'HANCO':
                 for i in range(len(cameras)):
                     depth_cam_path.append(Path(depth_path, f"cam{i}"))
                     depth_cam_path[i].mkdir(exist_ok=True)
@@ -646,6 +712,13 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         current_resolution_y = bpy.context.scene.render.resolution_y
         frame_start = context.scene.frame_start
         frame_end = context.scene.frame_end
+        tree = context.scene.node_tree
+        dist_node = tree.nodes.get("Distort")
+        dist_node_alpha = tree.nodes.get("DistortAlpha")
+        dist_node_mist = tree.nodes.get("DistortMist")
+        color_node = context.scene.world.node_tree.nodes.get("Hue/Saturation/Value")
+        if color_node and render_type == 'IR':
+            color_node.inputs['Value'].default_value = 0.01
         for i in range(frame_start, frame_end+1):
             context.scene.frame_set(i)
             # Iterate over all cameras
@@ -658,30 +731,37 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                             light.hide_render = False
                         else:
                             light.hide_render = True
+                dist_node.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
+                dist_node_alpha.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
+                dist_node_mist.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
                 context.scene.camera = camera
                 if render_type == 'RGB':
-                    if export_style == 'COMP':
+                    if export_style == 'HANCO':
                         context.scene.render.filepath = str(Path(rgb_cam_path[k], f"{i - frame_start:08}"))
                     else:
                         context.scene.render.filepath = str(Path(rgb_path, f"Frame_{i:06}_" + camera.name))
                 elif render_type == 'IR':
-                    if export_style == 'COMP':
+                    if export_style == 'HANCO':
                         context.scene.render.filepath = str(Path(ir_cam_path[k], f"{i - frame_start:08}"))
                     else:
                         context.scene.render.filepath = str(Path(ir_path, f"Frame_{i:06}_" + camera.name))
                 elif render_type == 'DEPTH':
-                    if export_style == 'COMP':
+                    if export_style == 'HANCO':
                         context.scene.render.filepath = str(Path(depth_cam_path[k], f"{i - frame_start:08}"))
                     else:
                         context.scene.render.filepath = str(Path(depth_path, f"Frame_{i:06}_" + camera.name))
                 # Adjust the resolution per camera
                 if context.scene.resolution_type == 'CAMERA':
-                    bpy.context.scene.render.resolution_x = camera["resolution x"]
-                    bpy.context.scene.render.resolution_y = camera["resolution y"]
+                    bpy.context.scene.render.resolution_x = camera.get("resolution x", current_resolution_x)
+                    bpy.context.scene.render.resolution_y = camera.get("resolution y", current_resolution_y)
                 # Invoke render
                 bpy.ops.render.render(write_still=True)
         for light in lights:
             light.hide_render = False
+        if dist_node: dist_node.inputs["Distortion"].default_value = 0.0
+        if dist_node_alpha: dist_node_alpha.inputs["Distortion"].default_value = 0.0
+        if dist_node_mist: dist_node_mist.inputs["Distortion"].default_value = 0.0
+        if color_node: color_node.inputs['Value'].default_value = 1.0
         context.scene.frame_set(current_frame)
         bpy.context.scene.render.resolution_x = current_resolution_x
         bpy.context.scene.render.resolution_y = current_resolution_y
@@ -1290,8 +1370,8 @@ def rodrigues_from_pose(armature, bone_name):
     if armature.pose.bones[bone_name].rotation_mode != 'QUATERNION':
         armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
 
-    if bone_name.startswith('corrective_'):
-        parent_bone_name = bone_name.split('corrective_')[-1]
+    if bone_name.startswith("corrective_"):
+        parent_bone_name = bone_name.split("corrective_")[-1]
         pose_bones = armature.pose.bones
         data_bones = armature.data.bones
         # 1. Get the Parent's Local Rotation 
@@ -1728,6 +1808,40 @@ class ExportArmatureGroup(bpy.types.PropertyGroup):
         items=export_get_bone_colllections,
     ) # type: ignore
 
+class CollisionGroup(bpy.types.PropertyGroup):
+    mesh: bpy.props.PointerProperty(
+        name="",
+        type=bpy.types.Object,
+        description="",
+        poll=lambda self, obj: obj.type == 'MESH',
+    ) # type: ignore
+
+    group: bpy.props.IntProperty(
+        name="",
+        description="",
+        default=1,
+        min=1,
+        max=100,
+        soft_max=10,
+    ) # type: ignore
+
+    # active: bpy.props.BoolProperty(
+    #     name="Active",
+    #     description="",
+    #     default=False,
+    # ) # type: ignore
+
+class VIEW3D_OT_CheckCollision(bpy.types.Operator):
+    bl_idname = "view3d.check_collision"
+    bl_label = "Check Collision"
+    bl_description = "Check for collisions between selected meshes"
+
+    def execute(self, context):
+        collision = check_collisions(context, verbose=True)
+        if not collision:
+            print("No collisions")
+        return {'FINISHED'}
+
 class VIEW3D_OT_AddExportArmature(bpy.types.Operator):
     bl_idname = "view3d.add_export_armature"
     bl_label = "Add"
@@ -1749,6 +1863,29 @@ class VIEW3D_OT_RemoveExportArmature(bpy.types.Operator):
         scene = context.scene
         if 0 <= self.index < len(scene.export_arm):
             scene.export_arm.remove(self.index)
+        return {'FINISHED'}
+
+class VIEW3D_OT_AddCollision(bpy.types.Operator):
+    bl_idname = "view3d.add_collision"
+    bl_label = "Add"
+    bl_description = "Add collision"
+
+    def execute(self, context):
+        scene = context.scene
+        scene.coll_gr.add()
+        return {'FINISHED'}
+
+class VIEW3D_OT_RemoveCollision(bpy.types.Operator):
+    bl_idname = "view3d.remove_collision"
+    bl_label = ""
+    bl_description = "Remove collision"
+
+    index: bpy.props.IntProperty() # type: ignore
+
+    def execute(self, context):
+        scene = context.scene
+        if 0 <= self.index < len(scene.coll_gr):
+            scene.coll_gr.remove(self.index)
         return {'FINISHED'}
 
 class PoseArmatureGroup(bpy.types.PropertyGroup):
@@ -1881,7 +2018,7 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
             mapping_node.inputs['Rotation'].default_value[2] = math.radians(random.uniform(0, 359))
             mapping_node.inputs['Rotation'].keyframe_insert(data_path="default_value", index=2, frame=self.i)
 
-    def keyframe(self, context, pose_group, index=0):
+    def keyframe_poses(self, context, pose_group, index=0):
         # If we reached the end of the group
         if index == len(pose_group):
             # Move to the next frame
@@ -1899,8 +2036,9 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
             bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
             if self.key_attach:
                 self.keyframe_attachments_show(context)
-            self.keyframe_background(context)
-            self.keyframe(context, pose_group, index + 1)
+            if context.scene.background_rotation:
+                self.keyframe_background(context)
+            self.keyframe_poses(context, pose_group, index + 1)
             if self.key_attach:
                 # ensures attachments visibility are reloaded
                 context.scene.armature_ref = arm.arm_ref
@@ -1908,60 +2046,119 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
                 context.scene.pose_selection = pose
                 self.keyframe_attachments_hide(context)
 
+    def keyframe_random(self, context, arm_group):
+        for keyframe in range(context.scene.num_keyframes):
+            intersects = True
+            patience = 500
+            gen_count = 0
+            aborted = False
+            context.scene.frame_set(self.i)
+            while intersects:
+                if gen_count > patience:
+                    aborted = True
+                    break
+                for arm in arm_group:
+                    context.scene.armature_ref = arm.arm_ref
+                    context.scene.selected_bone_collection = arm.bone_col
+                    bpy.ops.view3d.generate_pose('EXEC_DEFAULT')
+                if context.scene.consider_collisions:
+                    intersects = check_collisions(context)
+                else:
+                    intersects = False
+                gen_count += 1
+            if aborted:
+                return False
+            bpy.ops.view3d.armature_keyframe('EXEC_DEFAULT')
+            if context.scene.background_rotation:
+                self.keyframe_background(context)
+            self.i += 1 + self.spacing
+        return True
+    
     def execute(self, context):
-        pose_path = Path(bpy.path.abspath(context.scene.pose_path))
-        if pose_path.is_file():
-            with open(pose_path, 'r') as f:
-                try:
-                    data = json.load(f)
-                except json.JSONDecodeError:
-                    return {'CANCELLED'}
-        else:
-            self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
-            return {'CANCELLED'}
-
         self.spacing = context.scene.keyframe_spacing
-        pose_arms = context.scene.pose_arm
-        arm_groups = {}
-        # Sort by groups
-        if len(pose_arms) > 0:
-            for pose_arm in pose_arms:
-                poses = [pose["name"] for pose in data
-                    if pose["arm_name"] == pose_arm.arm_ref.name
-                    and pose["bone_col"] == pose_arm.bone_col]
-                if pose_arm.shuffle:
-                    random.shuffle(poses)
-                else:
-                    poses.sort()
-                if pose_arm.group in arm_groups:
-                    arm_groups[pose_arm.group].append({pose_arm: poses})
-                else:
-                    arm_groups[pose_arm.group] = [{pose_arm: poses}]
-        
-        current_frame = context.scene.frame_current
-        self.i = current_frame
-        # Disable keyframing attachments for custom keyframing
-        if context.scene.keyframe_attachments:
-            self.key_attach = True
-            context.scene.keyframe_attachments = False
-        else:
-            self.key_attach = False
-        
-        # Generate keyframes
-        for arm_group in arm_groups:
-            self.keyframe(context, arm_groups[arm_group])
-        
-        end_frame = self.i - self.spacing - 1
-        if end_frame > context.scene.frame_end:
-            context.scene.frame_end = end_frame
-        
-        # Apply corrective poseshapes for the inbetween frames
-        # if context.scene.use_poseshapes:
-        #     bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
-        
-        context.scene.frame_current = current_frame
-        context.scene.keyframe_attachments = self.key_attach
+        if context.scene.frame_generation == 'POSE':
+            pose_path = Path(bpy.path.abspath(context.scene.pose_path))
+            if pose_path.is_file():
+                with open(pose_path, 'r') as f:
+                    try:
+                        data = json.load(f)
+                    except json.JSONDecodeError:
+                        return {'CANCELLED'}
+            else:
+                self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
+                return {'CANCELLED'}
 
+            pose_arms = context.scene.pose_arm
+            arm_groups = {}
+            # Sort by groups
+            if len(pose_arms) > 0:
+                for pose_arm in pose_arms:
+                    poses = [pose["name"] for pose in data
+                        if pose["arm_name"] == pose_arm.arm_ref.name
+                        and pose["bone_col"] == pose_arm.bone_col]
+                    if pose_arm.shuffle:
+                        random.shuffle(poses)
+                    else:
+                        poses.sort()
+                    if pose_arm.group in arm_groups:
+                        arm_groups[pose_arm.group].append({pose_arm: poses})
+                    else:
+                        arm_groups[pose_arm.group] = [{pose_arm: poses}]
+        
+            current_frame = context.scene.frame_current
+            self.i = current_frame
+            # Disable keyframing attachments for custom keyframing
+            if context.scene.keyframe_attachments:
+                self.key_attach = True
+                context.scene.keyframe_attachments = False
+            else:
+                self.key_attach = False
+            
+            # Generate keyframes
+            for arm_group in arm_groups:
+                self.keyframe_poses(context, arm_groups[arm_group])
+            
+            end_frame = self.i - self.spacing - 1
+            if end_frame > context.scene.frame_end:
+                context.scene.frame_end = end_frame
+        
+            # Apply corrective poseshapes for the inbetween frames
+            # if context.scene.use_poseshapes:
+            #     bpy.ops.view3d.pose_shapes('EXEC_DEFAULT')
+            
+            context.scene.frame_current = current_frame
+            context.scene.keyframe_attachments = self.key_attach
+        elif context.scene.frame_generation == 'RND':
+            pose_arms = context.scene.pose_arm
+            arm_groups = {}
+            # Sort by groups
+            if len(pose_arms) > 0:
+                for pose_arm in pose_arms:
+                    if pose_arm.group in arm_groups:
+                        arm_groups[pose_arm.group].append(pose_arm)
+                    else:
+                        arm_groups[pose_arm.group] = [pose_arm]
+            current_frame = context.scene.frame_current
+            self.i = current_frame
+            # Disable keyframing attachments
+            if context.scene.keyframe_attachments:
+                self.key_attach = True
+                context.scene.keyframe_attachments = False
+            else:
+                self.key_attach = False
+            # Generate keyframes
+            for arm_group in arm_groups:
+                success = self.keyframe_random(context, arm_groups[arm_group])
+                if not success:
+                    self.report({'ERROR'}, "Pose generation takes too long. Try changing collision boundaries")
+                    return {'CANCELLED'}
+            
+            end_frame = self.i - self.spacing - 1
+            if end_frame > context.scene.frame_end:
+                context.scene.frame_end = end_frame
+            
+            context.scene.frame_current = current_frame
+            context.scene.keyframe_attachments = self.key_attach
         return {'FINISHED'}
 
 class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
@@ -1970,35 +2167,45 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
     bl_label = "Export Metadata"
     bl_description="Export sensor and hand metadata"
 
-    def get_sensors_data(self, context, cameras, matrix_world):
-        # TODO: detect hand visibility, bool "{armature bone_col} in frame"
+    def get_sensors_data(self, context, cameras, matrix_world, depsgraph, armature_data):
         sensors_data = []
         for camera in cameras:
+            camera = camera.evaluated_get(depsgraph)
             location = matrix_world @ camera.matrix_world.to_translation()
             rotation = camera.matrix_world.to_quaternion()
+            armatures_in_frame = [] # bone collections in frame
+            for armature in armature_data:
+                arm = bpy.data.objects.get(armature["name"])
+                arm = arm.evaluated_get(depsgraph)
+                for joint in armature["joints"]:
+                    bone = arm.pose.bones.get(joint["name"])
+                    uv = world_to_camera_view(context.scene, camera, arm.matrix_world @ bone.head)
+                    if 0.0 <= uv.x <= 1.0 and 0.0 <= uv.y <= 1.0 and uv.z > 0:
+                        armatures_in_frame.append(armature["bone_collection"])
+                        break
             sens_info = {
                 "name": camera.name,
                 "location": list(location),
                 "rotation_quaternion": list(rotation),
+                "K": self.get_camera_intrinsic(context, camera, depsgraph),
+                "M": self.get_camera_extrinsic(context, camera, matrix_world, depsgraph),
+                "in_frame": armatures_in_frame,
             }
             sensors_data.append(sens_info)
         return sensors_data
 
-    def get_cameras_extrinsic(self, context, cameras, matrix_world, depsgraph):
-        data = []
+    def get_camera_extrinsic(self, context, camera, matrix_world, depsgraph):
         opencv_format = Matrix((
             (1.0,  0.0,  0.0, 0.0),
             (0.0, -1.0,  0.0, 0.0),
             (0.0,  0.0, -1.0, 0.0),
             (0.0,  0.0,  0.0, 1.0)
         ))
-        for camera in cameras:
-            camera = camera.evaluated_get(depsgraph)
-            data.append([list(row) for row in opencv_format @ (matrix_world @ camera.matrix_world.copy()).inverted()])
-        return data
+        camera = camera.evaluated_get(depsgraph)
+        M = [list(row) for row in opencv_format @ (matrix_world @ camera.matrix_world.copy()).inverted()]
+        return M
 
-    def get_cameras_intrinsic(self, context, cameras, depsgraph):
-        data = []
+    def get_camera_intrinsic(self, context, camera, depsgraph):
         scene = context.scene
         # TODO: based on resolution_type
         # 1. Handle Resolution Scale %
@@ -2009,35 +2216,35 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         # 2. Handle Pixel Aspect Ratio (usually 1.0, but good to have)
         pixel_aspect = scene.render.pixel_aspect_x / scene.render.pixel_aspect_y
 
-        for camera in cameras:
-            camera = camera.evaluated_get(depsgraph)
-            camd = camera.data
-            # render resolution
-            f_mm = camd.lens
-            sensor_w = camd.sensor_width
-            sensor_h = camd.sensor_height
-                        
-            # In Blender, 'HORIZONTAL' is the dominant mode. 
-            # 'AUTO' usually defaults to HORIZONTAL behavior for standard aspect ratios.
-            if camd.sensor_fit == 'VERTICAL':
-                # Height is fixed. Calculate f based on sensor height.
-                f_pix = (f_mm / sensor_h) * H
-            else:
-                # Horizontal (or Auto): Width is fixed. Calculate f based on sensor width.
-                f_pix = (f_mm / sensor_w) * W
-                
-            # For square pixels, f_x = f_y.
-            # If pixels aren't square, we adjust f_y by the pixel aspect ratio.
-            f_x = f_pix
-            f_y = f_pix / pixel_aspect
-            c_x = W / 2.0
-            c_y = H / 2.0
-            data.append([
-                [f_x,   0,   c_x],
-                [0,   f_y,   c_y],
-                [0,     0,     1]
-            ])
-        return data
+        # for camera in cameras:
+        camera = camera.evaluated_get(depsgraph)
+        camd = camera.data
+        # render resolution
+        f_mm = camd.lens
+        sensor_w = camd.sensor_width
+        sensor_h = camd.sensor_height
+                    
+        # In Blender, 'HORIZONTAL' is the dominant mode. 
+        # 'AUTO' usually defaults to HORIZONTAL behavior for standard aspect ratios.
+        if camd.sensor_fit == 'VERTICAL':
+            # Height is fixed. Calculate f based on sensor height.
+            f_pix = (f_mm / sensor_h) * H
+        else:
+            # Horizontal (or Auto): Width is fixed. Calculate f based on sensor width.
+            f_pix = (f_mm / sensor_w) * W
+            
+        # For square pixels, f_x = f_y.
+        # If pixels aren't square, we adjust f_y by the pixel aspect ratio.
+        f_x = f_pix
+        f_y = f_pix / pixel_aspect
+        c_x = W / 2.0
+        c_y = H / 2.0
+        K = [
+            [f_x,   0,   c_x],
+            [0,   f_y,   c_y],
+            [0,     0,     1]
+        ]
+        return K
     
     def get_bone_data(self, bone, matrix_world, armature_world, max_noise, root):
         location = matrix_world @ (armature_world @ bone.head)
@@ -2051,6 +2258,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         bone_info["name"] = bone.name
         bone_info["location"] = list(location)
         bone.rotation_mode = 'QUATERNION'
+        #TODO: rethink this
         # Use global rotation if the bone is root, everything else is relative
         bone_info["rotation_quaternion"] = list(bone.rotation_quaternion if not root 
                                                 else (matrix_world @ (armature_world @ bone.matrix)).to_quaternion())
@@ -2067,6 +2275,8 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             armature = export.arm_ref
             if not armature:
                 continue
+            curr_hide = armature.hide_get()
+            armature.hide_set(False)
             bone_collection = armature.data.collections.get(export.bone_col)
             context.view_layer.objects.active = armature
             bpy.ops.object.mode_set(mode='POSE')
@@ -2081,6 +2291,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 bone_info = self.get_bone_data(bone, matrix_world, armature.matrix_world, max_noise, bone.parent is None)
                 armature_info["joints"].append(bone_info)
             armature_data.append(armature_info)
+            armature.hide_set(curr_hide)
         if active_curr:
             bpy.ops.object.mode_set(mode=current_mode)
         context.view_layer.objects.active = active_curr
@@ -2090,7 +2301,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         mano_data = []
         for export in export_armatures:
             armature = export.arm_ref
-            if not armature:
+            if not armature or any(d.get("armature") == armature.name for d in mano_data):
                 continue
             shape_info = {}
             shape_info["armature"] = armature.name
@@ -2100,7 +2311,7 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 if obj.type == 'MESH' and obj.data.shape_keys:
                     if obj.vertex_groups.get("MANO_RIGHT_HAND"):
                         shape_info["right_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('MANOShapeRIGHT_')]
-                    elif obj.vertex_groups.get("MANO_LEFT_HAND"):
+                    if obj.vertex_groups.get("MANO_LEFT_HAND"):
                         shape_info["left_hand_shape"] = [key.value for key in obj.data.shape_keys.key_blocks if key.name.startswith('MANOShapeLEFT_')]
             mano_data.append(shape_info)
         return mano_data
@@ -2113,10 +2324,9 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             return {'CANCELLED'}
         render_type = context.scene.light_selection
 
-        # TODO: check for each camera with "resolution_type"
         render = context.scene.render
-        width  = render.resolution_x
-        height = render.resolution_y
+        # width  = render.resolution_x
+        # height = render.resolution_y
 
         sensor_collection = bpy.data.collections.get('Sensors')
         export_armatures = context.scene.export_arm
@@ -2154,9 +2364,9 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         
         # Create metadata folder(s) if it doesn't exists
         if context.scene.export_style == 'VERB':
-                meta_path = Path(bpy.path.abspath(save_folder), "metadata")
+                meta_path = Path(bpy.path.abspath(save_folder), f"metadata_{render_type}")
                 meta_path.mkdir(exist_ok=True)
-        elif context.scene.export_style == 'COMP':
+        elif context.scene.export_style == 'HANCO':
                 calib_path = Path(bpy.path.abspath(save_folder), "calib", f"{context.scene.sequence_id:04}")
                 calib_path.mkdir(parents=True, exist_ok=True)
                 shape_path = Path(bpy.path.abspath(save_folder), "shape", f"{context.scene.sequence_id:04}")
@@ -2176,15 +2386,15 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 # TODO: add more stuff
                 # Get mano metadata
                 mano_data = self.get_mano_shape_data(context, export_armatures)
-                # Get sensor(s) metadata
-                sensors_data = self.get_sensors_data(context, cameras, matrix_world) if cameras else []
                 # Get armature(s) metadata
                 armature_data = self.get_armature_data(context, export_armatures, matrix_world) if len(export_armatures) > 0 else []
+                # Get sensor(s) metadata
+                sensors_data = self.get_sensors_data(context, cameras, matrix_world, depsgraph, armature_data) if cameras else []
                 # Save metadata
                 export_filepath = Path(meta_path, f"Frame_{i:06}.json")
                 with open(export_filepath, 'w') as f:
-                    json.dump({"Sensor data":sensors_data, "MANO hand data":mano_data, "Armature data":armature_data}, f, indent=4)
-            elif context.scene.export_style == 'COMP':
+                    json.dump({"Sensor data":sensors_data, "MANO hand data":mano_data, "Armature data":armature_data}, f, indent=2)
+            elif context.scene.export_style == 'HANCO':
                 # Save general pose/shape data
                 shape_params = {
                     "shapes" : [],
@@ -2226,27 +2436,28 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                     pose[index*3 + 1] = joint_pose[1]
                     pose[index*3 + 2] = joint_pose[2]
                 # NOTE: Useless for now
-                # calculate global rotation for wrist
-                quat = wrist_matrix.to_quaternion()
-                (axis, angle) = quat.to_axis_angle()
-                rodrigues = axis
-                rodrigues.normalize()
-                rodrigues = rodrigues * angle
-                pose[0] = rodrigues[0]
-                pose[1] = rodrigues[1]
-                pose[2] = rodrigues[2]
-                shape_params["poses"] = [pose]
-                # get wrist global position
-                global_t = matrix_world @ wrist_loc
-                shape_params["global_t"] = [[list(global_t)]]
-                shape_filepath = Path(shape_path, f"{i - current_frame:08}.json")
-                with open(shape_filepath, 'w') as f:
-                    json.dump(shape_params, f)
+                # # calculate global rotation for wrist
+                # quat = wrist_matrix.to_quaternion()
+                # (axis, angle) = quat.to_axis_angle()
+                # rodrigues = axis
+                # rodrigues.normalize()
+                # rodrigues = rodrigues * angle
+                # pose[0] = rodrigues[0]
+                # pose[1] = rodrigues[1]
+                # pose[2] = rodrigues[2]
+                # shape_params["poses"] = [pose]
+                # # get wrist global position
+                # global_t = matrix_world @ wrist_loc
+                # shape_params["global_t"] = [[list(global_t)]]
+                # shape_filepath = Path(shape_path, f"{i - current_frame:08}.json")
+                # with open(shape_filepath, 'w') as f:
+                #     json.dump(shape_params, f)
 
                 # Save camera data
                 camera_params = {"K":[], "M":[]}
-                camera_params["K"] = self.get_cameras_intrinsic(context, cameras, depsgraph)               # intrinsic
-                camera_params["M"] = self.get_cameras_extrinsic(context, cameras, matrix_world, depsgraph) # extrinsic
+                for camera in cameras:
+                    camera_params["K"].append(self.get_camera_intrinsic(context, camera, depsgraph))               # intrinsic
+                    camera_params["M"].append(self.get_camera_extrinsic(context, camera, matrix_world, depsgraph)) # extrinsic
                 calib_filepath = Path(calib_path, f"{i - current_frame:08}.json")
                 with open(calib_filepath, 'w') as f:
                     json.dump(camera_params, f)
@@ -2285,6 +2496,8 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                     wrist_cam = world_to_camera_view(context.scene, camera, wrist_loc)
                     f_x = camera_params["K"][k][0][0]
                     f_y = camera_params["K"][k][1][1]
+                    width = camera["resolution x"] if context.scene.resolution_type == 'CAMERA' else render.resolution_x
+                    height = camera["resolution y"] if context.scene.resolution_type == 'CAMERA' else render.resolution_y
                     camera_t = [(wrist_cam.x * width), ((1.0 - wrist_cam.y) * height) , 0.5*(f_x+f_y) / wrist_cam.z]
                     # add global translation
                     cam_pose_shape += camera_t
@@ -2294,7 +2507,6 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
                 # Save joint data
                 xyz = []
                 max_noise = context.scene.jitter
-                
                 bone_collection = armature.data.collections.get("RightHand")
                 for bone in armature.pose.bones:
                     if bone_collection and bone.name in bone_collection.bones:
@@ -2746,8 +2958,11 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
             composite = tree.nodes.new(type='CompositorNodeComposite')
         # Add compositing nodes
         lens_distortion_image = tree.nodes.new(type='CompositorNodeLensdist')
+        lens_distortion_image.name = "Distort"
         lens_distortion_alpha = tree.nodes.new(type='CompositorNodeLensdist')
+        lens_distortion_alpha.name = "DistortAlpha"
         lens_distortion_mist = tree.nodes.new(type='CompositorNodeLensdist')
+        lens_distortion_mist.name = "DistortMist"
         invert_depth = tree.nodes.new(type='CompositorNodeInvert')
         invert_depth.invert_rgb = True
         mix_rgb = tree.nodes.new(type='CompositorNodeMixRGB')
@@ -2764,13 +2979,13 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
         mix_rgb.location = (700, 0)
         composite.location = (1000, 0)
         # Set the distortion to 1.0
-        lens_distortion_image.inputs["Distortion"].default_value = 1.0
-        lens_distortion_alpha.inputs["Distortion"].default_value = 1.0
-        lens_distortion_mist.inputs["Distortion"].default_value = 1.0
-        # Disable the distortion for now
-        lens_distortion_image.mute = True
-        lens_distortion_alpha.mute = True
-        lens_distortion_mist.mute = True
+        lens_distortion_image.inputs["Distortion"].default_value = 0.0
+        lens_distortion_alpha.inputs["Distortion"].default_value = 0.0
+        lens_distortion_mist.inputs["Distortion"].default_value = 0.0
+        # # Disable the distortion for now
+        # lens_distortion_image.mute = True
+        # lens_distortion_alpha.mute = True
+        # lens_distortion_mist.mute = True
         # Set the saturation curve to a flat line at 0.0
         sat_curve = hue_correct.mapping.curves[1]  # 0=H, 1=S, 2=V
         # Remove existing points on the curve
@@ -2794,6 +3009,18 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
                 hue_correct.mute = True
         if context.scene.light_selection != "DEPTH":
             context.view_layer.use_pass_mist = False
+        return{'FINISHED'}
+
+class VIEW3D_OT_ConfigureBackground(bpy.types.Operator):
+    bl_idname = "view3d.configure_background"
+    bl_label = "Configure Background Shader"
+    bl_description = "Configure the World shader node tree"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        # TODO: implement
+        # if context.scene.override_world_shading:
+        #     tree.clear()
         return{'FINISHED'}
 
 class VIEW3D_PT_ExportSettings(bpy.types.Panel):
@@ -2835,6 +3062,10 @@ class VIEW3D_PT_ExportSettings(bpy.types.Panel):
         split_compositing = layout_row.split(factor=0.7, align=True)
         split_compositing.operator(VIEW3D_OT_ConfigureCompositing.bl_idname)
         split_compositing.prop(scene, "override_compositing")
+        layout_row = layout.row(align=True)
+        split_world_shader = layout_row.split(factor=0.7, align=True)
+        split_world_shader.operator(VIEW3D_OT_ConfigureBackground.bl_idname)
+        split_world_shader.prop(scene, "override_world_shading")
         layout.prop(scene, "background_rotation")
         
         layout.separator(type='LINE')
@@ -2862,7 +3093,7 @@ class VIEW3D_PT_ExportSettings(bpy.types.Panel):
             remove_op.index = i
         layout_col.operator("view3d.add_export_armature", icon='ADD')
 
-        layout.prop(scene, "jitter")
+        # layout.prop(scene, "jitter")
 
 class VIEW3D_PT_MANO_Model(bpy.types.Panel):
     """"""
@@ -3056,7 +3287,6 @@ class VIEW3D_PT_Sensor(bpy.types.Panel):
         layout_rand_angle_row.prop(scene, "angle_restriction")
         layout_rand_angle.operator(VIEW3D_OT_RandomSensorRotation.bl_idname)"""
         layout.operator(VIEW3D_OT_SensorKeyframe.bl_idname)
-        # TODO: add radio button to consider IR from "natural" sources (sun)
 
 class VIEW3D_PT_Dataset(bpy.types.Panel):
     """"""
@@ -3073,15 +3303,15 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
         # layout_row = layout.row(align=True)
         # split_render = layout_row.split(factor=0.9, align=True)
         layout_col = layout.column(align=True)
-        layout_col.label(text="Keyframe Generation:")
+        layout_col.label(text="Armatures to Animate:")
         for i, item in enumerate(scene.pose_arm):
             box = layout_col.box()
             box_row = box.row(align=False)
             box_col = box_row.column(align=True)
-            box_row_ord = box_col.row(align=True)
-            box_ord = box_row_ord.split(factor=0.27, align=True)
-            box_ord.label(text="Group:")
-            box_ord.prop(item, "group")
+            # box_row_ord = box_col.row(align=True)
+            # box_ord = box_row_ord.split(factor=0.27, align=True)
+            # box_ord.label(text="Group:")
+            # box_ord.prop(item, "group")
             box_row_arm = box_col.row(align=True)
             box_arm = box_row_arm.split(factor=0.27, align=True)
             box_arm.label(text="Armature:")
@@ -3090,7 +3320,9 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
             box_bone = box_row_bone.split(factor=0.27, align=True)
             box_bone.label(text="Bones:")
             box_bone.prop(item, "bone_col", icon='GROUP_BONE')
-            box_col.prop(item, "shuffle")
+            box_row_shuf = box_col.row(align=True)
+            box_row_shuf.enabled = scene.frame_generation == 'POSE'
+            box_row_shuf.prop(item, "shuffle")
             col_move = box_row.column(align=True)
             remove_op = col_move.operator("view3d.remove_pose_item", icon='X')
             move_up_op = col_move.operator("view3d.move_up_pose_item", icon='TRIA_UP')
@@ -3098,12 +3330,53 @@ class VIEW3D_PT_Dataset(bpy.types.Panel):
             remove_op.index = move_up_op.index = move_down_op.index = i
         layout_col.operator("view3d.add_pose_armature", icon='ADD')
         layout.prop(scene, "keyframe_spacing")
+        layout_row = layout.row(align=True)
+        split_gen = layout_row.split(factor=0.4, align=True)
+        split_gen.label(text="Generation type:")
+        split_gen.prop(scene, "frame_generation")
+        if scene.frame_generation == "RND":
+            box = layout.box()
+            box.prop(scene, "num_keyframes")
+            box.prop(scene, "consider_collisions")
         layout.operator(VIEW3D_OT_GenerateFrames.bl_idname, icon="SEQUENCE")
 
         layout.separator(type="LINE")
         layout.operator(VIEW3D_OT_MultiviewRender.bl_idname, icon="RENDER_ANIMATION")
         # split_render.operator(VIEW3D_OT_InfoBox.bl_idname, icon="QUESTION")
         layout.operator(VIEW3D_OT_ExportMetadata.bl_idname, icon="EXPORT")
+
+class VIEW3D_PT_Collision(bpy.types.Panel):
+    """"""
+    bl_label = "Collisions"
+    bl_idname = "VIEW3D_PT_Collision"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Hand Poser"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        
+        layout_col = layout.column(align=True)
+        layout_col.label(text="Collision Groups:")
+        for i, item in enumerate(scene.coll_gr):
+            box = layout_col.box()
+            box_row = box.row(align=False)
+            box_col = box_row.column(align=True)
+            box_row_ord = box_col.row(align=True)
+            box_ord = box_row_ord.split(factor=0.27, align=True)
+            box_ord.label(text="Group:")
+            box_ord.prop(item, "group")
+            box_row_mesh = box_col.row(align=True)
+            box_mesh = box_row_mesh.split(factor=0.27, align=True)
+            box_mesh.label(text="Mesh:")
+            box_mesh.prop(item, "mesh")
+            # box_col.prop(item, "active")
+            col_move = box_row.column(align=True)
+            remove_op = col_move.operator("view3d.remove_collision", icon='X')
+            remove_op.index = i
+        layout_col.operator("view3d.add_collision", icon='ADD')
+        layout.operator(VIEW3D_OT_CheckCollision.bl_idname)
 
 classes = (
     VIEW3D_OT_GenerateFrames,
@@ -3114,8 +3387,11 @@ classes = (
     VIEW3D_OT_AddExportArmature,
     VIEW3D_OT_RemoveExportArmature,
     PoseArmatureGroup,
+    CollisionGroup,
     VIEW3D_OT_AddPoseArmature,
     VIEW3D_OT_RemovePoseArmature,
+    VIEW3D_OT_AddCollision,
+    VIEW3D_OT_RemoveCollision,
     VIEW3D_OT_MoveUpPoseArmature,
     VIEW3D_OT_MoveDownPoseArmature,
     VIEW3D_OT_ImportMANO,
@@ -3142,16 +3418,19 @@ classes = (
     VIEW3D_OT_ShapeKeyframe,
     VIEW3D_OT_AddSensor,
     VIEW3D_OT_ConfigureCompositing,
+    VIEW3D_OT_ConfigureBackground,
     # VIEW3D_OT_MoveSensorToOrigin,
     VIEW3D_OT_RandomSensorPosition,
     # VIEW3D_OT_RandomSensorRotation,
     VIEW3D_OT_SensorKeyframe,
+    VIEW3D_OT_CheckCollision,
     VIEW3D_PT_Dataset,
     VIEW3D_PT_ExportSettings,
     VIEW3D_PT_MANO_Model,
     VIEW3D_PT_Pose,
     VIEW3D_PT_Shape,
     VIEW3D_PT_Sensor,
+    VIEW3D_PT_Collision,
 )
 
 def register():
@@ -3164,6 +3443,7 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.export_arm = bpy.props.CollectionProperty(type=ExportArmatureGroup)
     bpy.types.Scene.pose_arm = bpy.props.CollectionProperty(type=PoseArmatureGroup)
+    bpy.types.Scene.coll_gr = bpy.props.CollectionProperty(type=CollisionGroup)
     print("Registered")
 
 def unregister():
