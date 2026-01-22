@@ -44,42 +44,6 @@ def reload_modules():
     # print("reloading")
     reload(lm)
 
-# TODO: delete all print statements
-# TODO: delete me later ???
-"""def ensure_site_packages(packages: typing.List[typing.Tuple[str, str]]):    
-    if not packages:
-        return
-
-    import site
-    import importlib
-    import importlib.util
-
-    user_site_packages = site.getusersitepackages()
-    sys.path.append(user_site_packages)
-
-    modules_to_install = [module[1] for module in packages if not importlib.util.find_spec(module[0])]
-    if not modules_to_install:
-        return
-
-    if bpy.app.version < (2,91,0):
-        python_binary = bpy.app.binary_path_python
-    else:
-        python_binary = sys.executable
-        
-    import subprocess
-    subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
-    subprocess.run([python_binary, '-m', 'pip', 'install', *modules_to_install, "--user"], check=True)
-    
-    importlib.invalidate_caches()
-
-ensure_site_packages([
-    # ("flatbuffers", "flatbuffers"),
-    ("torch", "torch"),
-])"""
-
-# from manotorch.manolayer import ManoLayer, MANOOutput
-# from .VIRTOSHA.FlatBuffers import FrameBatch
-
 def compositing_error(self, context):
     self.layout.label(text="Compositing is not configured")
 
@@ -116,11 +80,11 @@ def update_light_selection(self, context):
             obj.hide_viewport = not nl_render
     tree = context.scene.node_tree
     hue_correct = tree.nodes.get("BlackAndWhiteFilter")
-    mix_rgb = tree.nodes.get("DepthImage")
+    distort_mist = tree.nodes.get("DistortMist")
     composite = tree.nodes.get("Composite")
-    if selection == 'DEPTH' and composite and mix_rgb:
+    if selection == 'DEPTH' and composite and distort_mist:
         context.view_layer.use_pass_mist = True
-        tree.links.new(mix_rgb.outputs['Image'], composite.inputs['Image'])
+        tree.links.new(distort_mist.outputs['Image'], composite.inputs['Image'])
     elif hue_correct and composite:
         context.view_layer.use_pass_mist = False
         hue_correct.mute = nl_render
@@ -714,7 +678,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         frame_end = context.scene.frame_end
         tree = context.scene.node_tree
         dist_node = tree.nodes.get("Distort")
-        dist_node_alpha = tree.nodes.get("DistortAlpha")
+        # dist_node_alpha = tree.nodes.get("DistortAlpha")
         dist_node_mist = tree.nodes.get("DistortMist")
         color_node = context.scene.world.node_tree.nodes.get("Hue/Saturation/Value")
         if color_node and render_type == 'IR':
@@ -732,7 +696,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                         else:
                             light.hide_render = True
                 dist_node.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
-                dist_node_alpha.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
+                # dist_node_alpha.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
                 dist_node_mist.inputs["Distortion"].default_value = camera.get("distortion", 0.0)
                 context.scene.camera = camera
                 if render_type == 'RGB':
@@ -759,7 +723,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
         for light in lights:
             light.hide_render = False
         if dist_node: dist_node.inputs["Distortion"].default_value = 0.0
-        if dist_node_alpha: dist_node_alpha.inputs["Distortion"].default_value = 0.0
+        # if dist_node_alpha: dist_node_alpha.inputs["Distortion"].default_value = 0.0
         if dist_node_mist: dist_node_mist.inputs["Distortion"].default_value = 0.0
         if color_node: color_node.inputs['Value'].default_value = 1.0
         context.scene.frame_set(current_frame)
@@ -775,7 +739,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
     bl_description="Add a sensor to the scene"
     bl_options = {'REGISTER', 'UNDO'}
     
-    def add_camera_properties(self, camera, resolution_x, resolution_y, rgb=True, ir=False, depth=True):
+    def add_camera_properties(self, camera, resolution_x, resolution_y, rgb=True, ir=False, depth=True, distortion=0.0):
         camera["in use"] = True
         camera.id_properties_ui("in use").update(
             description="Should this camera be used for rendering",
@@ -795,6 +759,12 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
         camera.id_properties_ui("depth").update(
             description="Does this camera support rendering in depth mode",
             default=True,
+        )
+        camera["distortion"] = distortion
+        camera.id_properties_ui("distortion").update(
+            description="Distortion coefficient",
+            min=-1.0,
+            max=1.0,
         )
         # NOTE: for blender 4.2 and higher there is an add-on "Per-Camera Resolution"
         camera["resolution x"] = resolution_x
@@ -855,7 +825,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
 
     def new_ir_light(self, light_name='Spot'):
         spot_data = bpy.data.lights.new(name=light_name, type='SPOT')
-        spot_data.energy = 0.5 # TODO: not sure what level should be apropriate
+        spot_data.energy = 0.5
         spot_data.spot_size = radians(180.0)
         spot_data.spot_blend = 0.3
         return spot_data
@@ -897,7 +867,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_left_obj.parent = empty
             cam_left_obj.location = (-0.032, 0.0, 0.0)
             # cam_left_obj.scale = (0.2, 0.2, 0.2)
-            self.add_camera_properties(cam_left_obj, 384, 384, rgb=False, ir=True)
+            self.add_camera_properties(cam_left_obj, 384, 384, rgb=False, ir=True, distortion=1.0)
             target_collection.objects.link(cam_left_obj)
             
             # render = context.scene.render
@@ -915,7 +885,7 @@ class VIEW3D_OT_AddSensor(bpy.types.Operator):
             cam_right_obj.parent = empty
             cam_right_obj.location = (0.032, 0.0, 0.0)
             # cam_right_obj.scale = (0.2, 0.2, 0.2)
-            self.add_camera_properties(cam_right_obj, 384, 384, rgb=False, ir=True)
+            self.add_camera_properties(cam_right_obj, 384, 384, rgb=False, ir=True, distortion=1.0)
             target_collection.objects.link(cam_right_obj)
             
             # cam_right_name = f"Camera_{base_name}_{index:03}_Right"
@@ -2048,7 +2018,7 @@ class VIEW3D_OT_GenerateFrames(bpy.types.Operator):
 
     def keyframe_random(self, context, arm_group):
         for keyframe in range(context.scene.num_keyframes):
-            intersects = True
+            intersects = True # TODO: maybe move this logic into pose generation
             patience = 500
             gen_count = 0
             aborted = False
@@ -2364,8 +2334,8 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
         
         # Create metadata folder(s) if it doesn't exists
         if context.scene.export_style == 'VERB':
-                meta_path = Path(bpy.path.abspath(save_folder), f"metadata_{render_type}")
-                meta_path.mkdir(exist_ok=True)
+                meta_path = Path(bpy.path.abspath(save_folder), f"metadata_{render_type}", f"{context.scene.sequence_id:04}")
+                meta_path.mkdir(parents=True, exist_ok=True)
         elif context.scene.export_style == 'HANCO':
                 calib_path = Path(bpy.path.abspath(save_folder), "calib", f"{context.scene.sequence_id:04}")
                 calib_path.mkdir(parents=True, exist_ok=True)
@@ -2383,7 +2353,6 @@ class VIEW3D_OT_ExportMetadata(bpy.types.Operator):
             context.scene.frame_set(i)
             depsgraph = bpy.context.evaluated_depsgraph_get()
             if context.scene.export_style == 'VERB':
-                # TODO: add more stuff
                 # Get mano metadata
                 mano_data = self.get_mano_shape_data(context, export_armatures)
                 # Get armature(s) metadata
@@ -2959,28 +2928,28 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
         # Add compositing nodes
         lens_distortion_image = tree.nodes.new(type='CompositorNodeLensdist')
         lens_distortion_image.name = "Distort"
-        lens_distortion_alpha = tree.nodes.new(type='CompositorNodeLensdist')
-        lens_distortion_alpha.name = "DistortAlpha"
+        # lens_distortion_alpha = tree.nodes.new(type='CompositorNodeLensdist')
+        # lens_distortion_alpha.name = "DistortAlpha"
         lens_distortion_mist = tree.nodes.new(type='CompositorNodeLensdist')
         lens_distortion_mist.name = "DistortMist"
         invert_depth = tree.nodes.new(type='CompositorNodeInvert')
         invert_depth.invert_rgb = True
-        mix_rgb = tree.nodes.new(type='CompositorNodeMixRGB')
-        mix_rgb.blend_type = 'MULTIPLY'
-        mix_rgb.name = "DepthImage"
+        # mix_rgb = tree.nodes.new(type='CompositorNodeMixRGB')
+        # mix_rgb.blend_type = 'MULTIPLY'
+        # mix_rgb.name = "DepthImage"
         hue_correct = tree.nodes.new(type='CompositorNodeHueCorrect')
         hue_correct.name = "BlackAndWhiteFilter"
         render_layers.location = (0, 0)
-        lens_distortion_image.location = (300, 350)
-        lens_distortion_alpha.location = (300, 0)
-        lens_distortion_mist.location = (300, -250)
-        hue_correct.location = (500, 350)
-        invert_depth.location = (500, -250)
-        mix_rgb.location = (700, 0)
-        composite.location = (1000, 0)
+        lens_distortion_image.location = (300, 150)
+        # lens_distortion_alpha.location = (300, 0)
+        lens_distortion_mist.location = (500, -100)
+        hue_correct.location = (500, 250)
+        invert_depth.location = (300, -100)
+        # mix_rgb.location = (700, 0)
+        composite.location = (900, 0)
         # Set the distortion to 1.0
         lens_distortion_image.inputs["Distortion"].default_value = 0.0
-        lens_distortion_alpha.inputs["Distortion"].default_value = 0.0
+        # lens_distortion_alpha.inputs["Distortion"].default_value = 0.0
         lens_distortion_mist.inputs["Distortion"].default_value = 0.0
         # # Disable the distortion for now
         # lens_distortion_image.mute = True
@@ -2996,13 +2965,15 @@ class VIEW3D_OT_ConfigureCompositing(bpy.types.Operator):
         # Link the nodes together
         tree.links.new(render_layers.outputs['Image'], lens_distortion_image.inputs['Image'])
         tree.links.new(lens_distortion_image.outputs['Image'], hue_correct.inputs['Image'])
-        tree.links.new(render_layers.outputs['Alpha'], lens_distortion_alpha.inputs['Image'])
-        tree.links.new(render_layers.outputs['Mist'], lens_distortion_mist.inputs['Image'])
-        tree.links.new(lens_distortion_mist.outputs['Image'], invert_depth.inputs['Color'])
-        tree.links.new(lens_distortion_alpha.outputs['Image'], mix_rgb.inputs[1])
-        tree.links.new(invert_depth.outputs['Color'], mix_rgb.inputs[2])
+        # tree.links.new(render_layers.outputs['Alpha'], lens_distortion_alpha.inputs['Image'])
+        # tree.links.new(render_layers.outputs['Mist'], lens_distortion_mist.inputs['Image'])
+        tree.links.new(render_layers.outputs['Mist'], invert_depth.inputs['Color'])
+        tree.links.new(invert_depth.outputs['Color'], lens_distortion_mist.inputs['Image'])
+        # tree.links.new(lens_distortion_alpha.outputs['Image'], mix_rgb.inputs[1])
+        # tree.links.new(invert_depth.outputs['Color'], mix_rgb.inputs[2])
         if context.scene.light_selection == 'DEPTH':
-            tree.links.new(mix_rgb.outputs['Image'], composite.inputs['Image'])
+            # tree.links.new(mix_rgb.outputs['Image'], composite.inputs['Image'])
+            tree.links.new(lens_distortion_mist.outputs['Image'], composite.inputs['Image'])
         else:
             tree.links.new(hue_correct.outputs['Image'], composite.inputs['Image'])
             if context.scene.light_selection == 'RGB':
@@ -3018,9 +2989,38 @@ class VIEW3D_OT_ConfigureBackground(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        # TODO: implement
-        # if context.scene.override_world_shading:
-        #     tree.clear()
+        world = bpy.context.scene.world
+        # Make sure the world exists
+        if world is None:
+            world = bpy.data.worlds.new("World")
+            bpy.context.scene.world = world
+        # Enable nodes
+        world.use_nodes = True
+        tree = world.node_tree
+        nodes = tree.nodes
+        links = tree.links
+        if context.scene.override_world_shading:
+            nodes.clear()
+        texcoord = nodes.new(type="ShaderNodeTexCoord")
+        mapping = nodes.new(type="ShaderNodeMapping")
+        envtex = nodes.new(type="ShaderNodeTexEnvironment")
+        hsv = nodes.new(type="ShaderNodeHueSaturation")
+        bg = nodes.new(type="ShaderNodeBackground")
+        output = nodes.new(type="ShaderNodeOutputWorld")
+
+        texcoord.location = (-800, 0)
+        mapping.location = (-600, 0)
+        envtex.location = (-400, 0)
+        hsv.location = (-200, 0)
+        bg.location = (100, 0)
+        output.location = (300, 0)
+
+        links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
+        links.new(mapping.outputs["Vector"], envtex.inputs["Vector"])
+        links.new(envtex.outputs["Color"], hsv.inputs["Color"])
+        links.new(hsv.outputs["Color"], bg.inputs["Color"])
+        links.new(bg.outputs["Background"], output.inputs["Surface"])
+
         return{'FINISHED'}
 
 class VIEW3D_PT_ExportSettings(bpy.types.Panel):
