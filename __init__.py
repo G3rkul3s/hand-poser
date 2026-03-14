@@ -78,7 +78,7 @@ def update_light_selection(self, context):
             obj.hide_render = not nl_render
             # if self.viewport_checkbox:
             obj.hide_viewport = not nl_render
-    tree = context.scene.node_tree
+    tree = context.scene.node_tree # TODO: set use_nodes checkbox
     hue_correct = tree.nodes.get("BlackAndWhiteFilter")
     distort_mist = tree.nodes.get("DistortMist")
     composite = tree.nodes.get("Composite")
@@ -538,7 +538,7 @@ bpy.types.Scene.random_positions_ref = bpy.props.PointerProperty(
 )
 
 def pose_get_bone_collections(self, context):
-    items = [("ALL", "All", "Use the whole armature")]
+    items = [("ALL", "ALL", "Use the whole armature")]
     armature = self.armature_ref
     if armature and armature.type == 'ARMATURE':
         items.extend([(bc.name, bc.name, f"Use {bc.name} collection") for bc in armature.data.collections])
@@ -1140,10 +1140,10 @@ class VIEW3D_OT_SavePose(bpy.types.Operator):
         armature_info = {}
         armature_info["name"] = context.scene.pose_name
         armature_info["arm_name"] = armature.name
-        armature_info["bone_col"] = bone_collection.name
+        armature_info["bone_col"] = bone_collection.name if bone_collection else "ALL"
         armature_info["joints"] = []
         for bone in armature.pose.bones:
-            if bone.name not in bone_collection.bones:
+            if bone_collection and bone.name not in bone_collection.bones:
                 continue
             bone_info = self.get_bone_data(bone)
             armature_info["joints"].append(bone_info)

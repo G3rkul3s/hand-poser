@@ -9265,5 +9265,202 @@
             }
         ],
         "render_with": []
+    },
+    {
+        "name": "Holding Big Cyllinder",
+        "arm_name": "SMPLX-lh-female",
+        "bone_col": "LeftHand",
+        "joints": [
+            {
+                "name": "LEFT_Wrist",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_IndexProximal",
+                "rotation_quaternion": [
+                    0.9788828492164612,
+                    -0.15520769357681274,
+                    0.12496543675661087,
+                    0.04563561826944351
+                ]
+            },
+            {
+                "name": "LEFT_IndexIntermadiate",
+                "rotation_quaternion": [
+                    0.9491140842437744,
+                    -0.314932644367218,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_IndexDistal",
+                "rotation_quaternion": [
+                    0.991022527217865,
+                    -0.1336950659751892,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_IndexTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_MiddleProximal",
+                "rotation_quaternion": [
+                    0.9294207692146301,
+                    -0.34987184405326843,
+                    0.1098092570900917,
+                    0.0413365513086319
+                ]
+            },
+            {
+                "name": "LEFT_MiddleIntermadiate",
+                "rotation_quaternion": [
+                    0.9536191821098328,
+                    -0.30101585388183594,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_MiddleDistal",
+                "rotation_quaternion": [
+                    0.9999722242355347,
+                    -0.007454575039446354,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_MiddleTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_LittleProximal",
+                "rotation_quaternion": [
+                    0.9842589497566223,
+                    -0.11915193498134613,
+                    -0.1295800656080246,
+                    -0.015686659142374992
+                ]
+            },
+            {
+                "name": "LEFT_LittleIntermadiate",
+                "rotation_quaternion": [
+                    0.9495148658752441,
+                    -0.313722163438797,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_LittleDistal",
+                "rotation_quaternion": [
+                    0.9986295700073242,
+                    0.05233592540025711,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_LittleTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_RingProximal",
+                "rotation_quaternion": [
+                    0.9535136818885803,
+                    -0.3013496696949005,
+                    -9.134409850730663e-08,
+                    -2.8868500479006798e-08
+                ]
+            },
+            {
+                "name": "LEFT_RingIntermadiate",
+                "rotation_quaternion": [
+                    0.9551980495452881,
+                    -0.29596734046936035,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_RingDistal",
+                "rotation_quaternion": [
+                    0.9962791204452515,
+                    -0.08618545532226562,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_RingTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_ThumbMetacarpal",
+                "rotation_quaternion": [
+                    0.9357516169548035,
+                    -0.001056366367265582,
+                    -0.3526580333709717,
+                    -0.0003981172922067344
+                ]
+            },
+            {
+                "name": "LEFT_ThumbProximal",
+                "rotation_quaternion": [
+                    0.9950650930404663,
+                    -0.09922420233488083,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_ThumbDistal",
+                "rotation_quaternion": [
+                    0.9848077893257141,
+                    0.1736481487751007,
+                    0.0,
+                    0.0
+                ]
+            },
+            {
+                "name": "LEFT_ThumbTip",
+                "rotation_quaternion": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        ],
+        "render_with": []
     }
 ]
