@@ -160,6 +160,7 @@ def load_poses_from_file(self, context):
                                 and pose["bone_col"] == context.scene.selected_bone_collection])
             _cached_poses = poses if len(poses) > 0 else [("NONE", "None", "")]
             _cached_poses.sort()
+            load_vis_att_from_file(self, context)
     else:
         _cached_poses = [("NONE", "None", "")]
         self.report({'ERROR'}, "A file with saved poses is missing.\nSave a pose to create one")
@@ -185,7 +186,7 @@ def load_vis_att_from_file(self, context):
         _cached_pose_attachments = [("NONE", "None", "")]
         return
     for pose in data:
-        if pose['name'] == context.scene.pose_selection:
+        if pose['name'] == context.scene.pose_selection and pose["bone_col"] == context.scene.selected_bone_collection:
             objects = pose.get('render_with')
             if objects is None or len(objects) == 0:
                 _cached_pose_attachments = [("NONE", "None", "")]
@@ -655,7 +656,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                     rgb_cam_path[i].mkdir(exist_ok=True)
         elif render_type == 'IR':
             ir_path = Path(bpy.path.abspath(save_folder), "infrared", f"{context.scene.sequence_id:04}")
-            ir_path.mkdir(exist_ok=True)
+            ir_path.mkdir(parents=True, exist_ok=True)
             ir_cam_path = []
             if export_style == 'HANCO':
                 for i in range(len(cameras)):
@@ -663,7 +664,7 @@ class VIEW3D_OT_MultiviewRender(bpy.types.Operator):
                     ir_cam_path[i].mkdir(exist_ok=True)
         elif render_type == 'DEPTH':
             depth_path = Path(bpy.path.abspath(save_folder), "depth", f"{context.scene.sequence_id:04}")
-            depth_path.mkdir(exist_ok=True)
+            depth_path.mkdir(parents=True, exist_ok=True)
             depth_cam_path = []
             if export_style == 'HANCO':
                 for i in range(len(cameras)):
@@ -1047,7 +1048,7 @@ class VIEW3D_OT_AttachObject(bpy.types.Operator):
             self.report({'ERROR'}, "A file with saved poses is missing")
             return {'CANCELLED'}
         for pose in data:
-            if pose['name'] == context.scene.pose_selection:
+            if pose['name'] == context.scene.pose_selection and pose["bone_col"] == context.scene.selected_bone_collection:
                 if pose.get('render_with') is None:
                     pose['render_with'] = []
                 if not obj in pose['render_with']:
@@ -1086,7 +1087,7 @@ class VIEW3D_OT_DetachObject(bpy.types.Operator):
             self.report({'ERROR'}, "A file with saved poses is missing")
             return {'CANCELLED'}
         for pose in data:
-            if pose['name'] == context.scene.pose_selection:
+            if pose['name'] == context.scene.pose_selection and pose["bone_col"] == context.scene.selected_bone_collection:
                 if pose.get('render_with') is None:
                     break
                 if obj in pose['render_with']:
@@ -1216,7 +1217,7 @@ class VIEW3D_OT_RenamePose(bpy.types.Operator):
             self.report({'ERROR'}, "A pose with this name already exists")
             return {'CANCELLED'}
         for pose in data:
-            if pose['name'] == context.scene.pose_selection:
+            if pose['name'] == context.scene.pose_selection and pose["bone_col"] == context.scene.selected_bone_collection:
                 pose['name'] = context.scene.pose_name
                 break
         with open(pose_path, 'w') as f:
